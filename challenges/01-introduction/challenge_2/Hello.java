@@ -1,6 +1,4 @@
-package pt.espadeiro.jlox;
-
-public class Lox {
+public class Hello {
     public static void main(String[] args) {
         System.out.println("Hello, world!");
     }

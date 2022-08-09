@@ -1,1 +1,11 @@
-# Crafting Interpreters Walkthrough
+# My journey through "Crafting Interpreters"
+
+I enjoyed my compilers class in college and wanted to learn and explore a little more. First, I went to make a [brainfuck compiler](https://github.com/EdSwordsmith/brainfuck) ([actually two](https://github.com/EdSwordsmith/brainfuck_rs)). A friend told me about this book and now I've decided to go through it.
+
+## Folder structure
+- challenges: contains my attempts at completing the challenges
+- notes: contains my notes on the book
+
+## Notes
+### I. Welcome
+- [Introduction](notes/1_introduction.md)
