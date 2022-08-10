@@ -1,0 +1,18 @@
+fun printResult(func) {
+    var result = func();
+    print "The result is: ";
+    print result;
+}
+
+fun createAdder(x) {
+    // return (fun (y) { return x + y; });
+    fun adder(y) { return x + y; }
+    return adder;
+}
+
+fun createConstantFunction(x) {
+    fun constantFunction() { return x; }
+    return constantFunction;
+}
+
+printResult(createConstantFunction(createAdder(3)(4)));

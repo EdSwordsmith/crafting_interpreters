@@ -1,0 +1,33 @@
+fun fibr(n) {
+    if (n < 2)
+        return n;
+    return fibr(n - 1) + fibr(n - 2);
+}
+
+fun fib(n) {
+    if (n < 2)
+        return n;
+    
+    var a = 0;
+    var b = 1;
+
+    for (var i = 1; i < n; i = i + 1) {
+        var c = a + b;
+        a = b;
+        b = c;
+    }
+
+    return b;
+}
+
+print fibr(0);
+print fibr(1);
+print fibr(2);
+print fibr(3);
+print fibr(4);
+print fib(5);
+print fib(6);
+print fib(7);
+print fib(8);
+print fib(9);
+print fib(10);
