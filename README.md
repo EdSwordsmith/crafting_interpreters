@@ -8,4 +8,6 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 
 ## Notes
 ### I. Welcome
-- [Introduction](notes/1_introduction.md)
+- [Introduction](notes/01_introduction.md)
+- [A Map of the Territory](notes/02_a_map_of_the_territory.md)
+- [The Lox Language](notes/03_the_lox_language.md)
