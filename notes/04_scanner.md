@@ -12,3 +12,5 @@ The next adaptation I made was the token representation. I kept it similar with 
 2. Both Ruby and CoffeeScript allow function calls without parentheses, spaces help say what is the sequence of function calls.
 
 3. Some languages could use comments with preprocessor directives and maybe when having a language transpiling to another language, having the comments will help making the result human readable.
+
+4. I had to implement nested block comments in my university project, so I had some idea of how to do it. The code for is it very similar to line comments with the difference that the number of opened block comments needs to be counted in order to ensure every block comment is closed.

@@ -161,6 +161,29 @@ impl<'a> Scanner<'a> {
                     while self.peek() != '\n' && !self.is_at_end() {
                         self.advance();
                     }
+                } else if self.matches('*') {
+                    let mut open_comments = 1;
+                    while open_comments > 0 && !self.is_at_end() {
+                        let c = self.advance();
+                        match c {
+                            '/' => {
+                                if self.matches('*') {
+                                    open_comments += 1;
+                                }
+                            }
+                            '*' => {
+                                if self.matches('/') {
+                                    open_comments -= 1;
+                                }
+                            }
+                            '\n' => self.line += 1,
+                            _ => {}
+                        }
+                    }
+
+                    if open_comments > 0 {
+                        self.lox.error(self.line, "Unterminated block comment.");
+                    }
                 } else {
                     self.add_token(TokenType::Slash);
                 }
