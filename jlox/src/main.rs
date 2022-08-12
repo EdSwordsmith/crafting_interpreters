@@ -1,11 +1,12 @@
 use std::{
     env, fs,
-    io::{stdin, stdout, Write},
+    io::{BufRead, stdin, stdout, Write},
 };
 
 use crate::scanner::Scanner;
 
 mod scanner;
+mod token;
 
 pub struct Lox {
     had_error: bool,
@@ -25,17 +26,16 @@ impl Lox {
     }
 
     fn run_prompt(&mut self) {
-        loop {
-            print!("> ");
-            stdout().flush().unwrap();
+        print!("> ");
+        stdout().flush().unwrap();
 
-            let mut line = String::new();
-            if stdin().read_line(&mut line).unwrap() <= 1 {
-                break;
-            }
-
+        for line in stdin().lock().lines() {
+            let line = line.unwrap();
             self.run(line);
             self.had_error = false;
+
+            print!("> ");
+            stdout().flush().unwrap();
         }
     }
 
