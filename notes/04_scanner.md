@@ -14,3 +14,8 @@ The next adaptation I made was the token representation. I kept it similar with 
 3. Some languages could use comments with preprocessor directives and maybe when having a language transpiling to another language, having the comments will help making the result human readable.
 
 4. I had to implement nested block comments in my university project, so I had some idea of how to do it. The code for is it very similar to line comments with the difference that the number of opened block comments needs to be counted in order to ensure every block comment is closed.
+
+## Refactoring
+I ended up deciding to change quite a bit of the code. The `Lox` struct was completely removed, created a custom error struct and made it implement `fmt::Display`. What previously was the `Scanner` struct is now the `State` struct used by the `scan_tokens` function. This function returns a `ScanResult`, which contains a vector ok tokens and a vector of errors.
+
+These changes were mostly to make the code look more like normal rust code and not simply java code translated to rust.

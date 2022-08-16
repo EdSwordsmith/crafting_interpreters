@@ -1,8 +1,39 @@
-use crate::Lox;
-use crate::token::*;
+use crate::errors::{error, LoxError};
 
-pub struct Scanner<'a> {
-    lox: &'a mut Lox,
+use super::token::*;
+
+pub struct ScanResult {
+    tokens: Vec<Token>,
+    errors: Vec<LoxError>,
+}
+
+impl ScanResult {
+    pub fn unwrap(mut self, errors: &mut Vec<LoxError>) -> Vec<Token> {
+        errors.append(&mut self.errors);
+        self.tokens
+    }
+}
+
+pub fn scan_tokens(source: String) -> ScanResult {
+    let mut state = State::new(source);
+    let mut errors = Vec::new();
+
+    while !state.is_at_end() {
+        state.start = state.current;
+        if let Err(error) = state.scan_token() {
+            errors.push(error);
+        }
+    }
+
+    state.eof();
+
+    ScanResult {
+        tokens: state.tokens,
+        errors,
+    }
+}
+
+struct State {
     source: String,
     tokens: Vec<Token>,
     start: usize,
@@ -10,35 +41,22 @@ pub struct Scanner<'a> {
     line: usize,
 }
 
-impl<'a> Scanner<'a> {
-    pub fn new(lox: &mut Lox, source: String) -> Scanner {
-        Scanner {
+impl State {
+    fn new(source: String) -> State {
+        State {
             source,
             tokens: Vec::new(),
             start: 0,
             current: 0,
             line: 1,
-            lox,
         }
-    }
-
-    pub fn scan_tokens(&mut self) -> Vec<Token> {
-        while !self.is_at_end() {
-            self.start = self.current;
-            self.scan_token();
-        }
-
-        self.tokens
-            .push(Token::new(TokenType::Eof, "".into(), self.line));
-
-        self.tokens.clone()
     }
 
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
     }
 
-    fn scan_token(&mut self) {
+    fn scan_token(&mut self) -> Result<(), LoxError> {
         let c = self.advance();
         match c {
             '(' => self.add_token(TokenType::LeftParen),
@@ -102,7 +120,9 @@ impl<'a> Scanner<'a> {
             ' ' | '\r' | '\t' => {}
             '\n' => self.line += 1,
 
-            '"' => self.string(),
+            '"' => {
+                return self.string();
+            }
 
             other => {
                 if other.is_ascii_digit() {
@@ -110,13 +130,15 @@ impl<'a> Scanner<'a> {
                 } else if other.is_alpha() {
                     self.identifier();
                 } else {
-                    self.lox.error(self.line, "Unexpected character.");
+                    return Err(error(self.line, "Unexpected character."));
                 }
             }
         }
+
+        Ok(())
     }
 
-    fn string(&mut self) {
+    fn string(&mut self) -> Result<(), LoxError> {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
@@ -126,14 +148,14 @@ impl<'a> Scanner<'a> {
         }
 
         if self.is_at_end() {
-            self.lox.error(self.line, "Unterminated string.");
-            return;
+            return Err(error(self.line, "Unterminated string."));
         }
 
         self.advance();
 
         let value = String::from(&self.source[self.start + 1..self.current - 1]);
         self.add_token(TokenType::String(value));
+        Ok(())
     }
 
     fn number(&mut self) {
@@ -210,6 +232,11 @@ impl<'a> Scanner<'a> {
     fn get_char(&self, index: usize) -> char {
         (&self.source[index..]).chars().next().unwrap()
     }
+
+    pub fn eof(&mut self) {
+        self.tokens
+            .push(Token::new(TokenType::Eof, "".into(), self.line));
+    }
 }
 
 trait IsAlpha {
@@ -224,34 +251,5 @@ impl IsAlpha for char {
 
     fn is_alpha_or_digit(&self) -> bool {
         self.is_alpha() || self.is_ascii_digit()
-    }
-}
-
-trait Keyword {
-    fn keyword(&self) -> Option<TokenType>;
-}
-
-impl Keyword for str {
-    fn keyword(&self) -> Option<TokenType> {
-        match self {
-            "and" => Some(TokenType::And),
-            "class" => Some(TokenType::Class),
-            "else" => Some(TokenType::Else),
-            "false" => Some(TokenType::False),
-            "for" => Some(TokenType::For),
-            "fun" => Some(TokenType::Fun),
-            "if" => Some(TokenType::If),
-            "nil" => Some(TokenType::Nil),
-            "or" => Some(TokenType::Or),
-            "print" => Some(TokenType::Print),
-            "return" => Some(TokenType::Return),
-            "super" => Some(TokenType::Super),
-            "this" => Some(TokenType::This),
-            "true" => Some(TokenType::True),
-            "var" => Some(TokenType::Var),
-            "while" => Some(TokenType::While),
-
-            _ => None,
-        }
     }
 }

@@ -1,67 +1,49 @@
 use std::{
     env, fs,
-    io::{BufRead, stdin, stdout, Write},
+    io::{stdin, stdout, BufRead, Write},
 };
 
-use crate::scanner::Scanner;
+use errors::{Errors, ReportErrors};
 
+mod errors;
 mod scanner;
-mod token;
 
-pub struct Lox {
-    had_error: bool,
+fn run_file(path: &str) {
+    let source = fs::read_to_string(path).unwrap();
+    run(source).report_and_exit(65);
 }
 
-impl Lox {
-    fn new() -> Lox {
-        Lox { had_error: false }
-    }
+fn run_prompt() {
+    print!("> ");
+    stdout().flush().unwrap();
 
-    fn run_file(&mut self, path: &str) {
-        let source = fs::read_to_string(path).unwrap();
-        self.run(source);
-        if self.had_error {
-            std::process::exit(65);
-        }
-    }
+    for line in stdin().lock().lines() {
+        let line = line.unwrap();
+        run(line).report();
 
-    fn run_prompt(&mut self) {
         print!("> ");
         stdout().flush().unwrap();
+    }
+}
 
-        for line in stdin().lock().lines() {
-            let line = line.unwrap();
-            self.run(line);
-            self.had_error = false;
+fn run(source: String) -> Result<(), Errors> {
+    let mut errors = Vec::new();
+    let tokens = scanner::scan_tokens(source).unwrap(&mut errors);
 
-            print!("> ");
-            stdout().flush().unwrap();
-        }
+    println!("{:?}", tokens);
+    if !errors.is_empty() {
+        return Err(Errors(errors));
     }
 
-    fn run(&mut self, source: String) {
-        let mut scanner = Scanner::new(self, source);
-        let tokens = scanner.scan_tokens();
-        println!("{:?}", tokens);
-    }
-
-    pub fn error(&mut self, line: usize, message: &str) {
-        self.report(line, "", message);
-    }
-
-    fn report(&mut self, line: usize, location: &str, message: &str) {
-        eprintln!("[line {}] Error{}: {}", line, location, message);
-        self.had_error = true;
-    }
+    Ok(())
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let mut lox = Lox::new();
 
     match args.len() {
-        1 => lox.run_prompt(),
-        2 => lox.run_file(&args[1]),
+        1 => run_prompt(),
+        2 => run_file(&args[1]),
         _ => {
             println!("Usage: jlox [script]");
             std::process::exit(64);
