@@ -4,7 +4,10 @@ use std::{
 };
 
 use errors::{Errors, ReportErrors};
+use crate::scanner::{Token, TokenType};
 
+mod ast;
+mod ast_printer;
 mod errors;
 mod scanner;
 
