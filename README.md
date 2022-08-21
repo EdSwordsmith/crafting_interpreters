@@ -13,3 +13,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [The Lox Language](notes/03_the_lox_language.md)
 ### II. A Tree-Walk Interpreter
 - [Scanner](notes/04_scanner.md)
+- [Representing Code](notes/05_representing_code.md)
