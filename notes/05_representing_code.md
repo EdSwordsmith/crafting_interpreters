@@ -44,5 +44,3 @@ exprs → expr
 I think this is it. Names were arbitrary, I think this grammar encodes a chain of calling methods or accessing fields of expressions.
 
 2. TBD
-
-3. TBD
