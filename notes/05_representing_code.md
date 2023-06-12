@@ -43,4 +43,4 @@ exprs → expr
 
 I think this is it. Names were arbitrary, I think this grammar encodes a chain of calling methods or accessing fields of expressions.
 
-2. TBD
+2. This challenge ended up making me forget about the book for a long time because it made me want to relearn Haskell and also ended up watching a few videos on talks about Haskell. The only thing I could think was to have some sort of record keeping function pointers, which I checked is what the author wrote as the solution for this challenge. I'm a bit biased towards liking functional programming more, so I couldn't really understand this one well. 
