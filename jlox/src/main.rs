@@ -3,8 +3,8 @@ use std::{
     io::{stdin, stdout, BufRead, Write},
 };
 
-use errors::{Errors, ReportErrors};
 use crate::scanner::{Token, TokenType};
+use errors::{Errors, ReportErrors};
 
 mod ast;
 mod ast_printer;
