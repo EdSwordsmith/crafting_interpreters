@@ -10,3 +10,5 @@ I decided to add "rustyline" to the project, so that I can have a better repl ex
 1. The new grammar would be the following:
 comma -> equality ( "," equality )*
 
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/6_comma_operator).
+
