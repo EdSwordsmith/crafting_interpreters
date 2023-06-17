@@ -2,15 +2,27 @@ use crate::scanner::Token;
 
 pub enum Object {
     Number(f64),
+    Bool(bool),
     String(String),
-    Nil
+    Nil,
 }
 
 pub enum Expr {
-    Binary { left: Box<Expr>, operator: Token, right: Box<Expr>, },
-    Grouping { expression: Box<Expr>, },
-    Literal { value: Object },
-    Unary { operator: Token, right: Box<Expr>, },
+    Binary {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
+    },
+    Grouping {
+        expression: Box<Expr>,
+    },
+    Literal {
+        value: Object,
+    },
+    Unary {
+        operator: Token,
+        right: Box<Expr>,
+    },
 }
 
 pub trait ExprVisitor<T> {

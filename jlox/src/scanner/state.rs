@@ -230,7 +230,7 @@ impl State {
     }
 
     fn get_char(&self, index: usize) -> char {
-        (&self.source[index..]).chars().next().unwrap()
+        self.source[index..].chars().next().unwrap()
     }
 
     pub fn eof(&mut self) {

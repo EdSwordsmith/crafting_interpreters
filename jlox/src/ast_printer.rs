@@ -9,11 +9,9 @@ impl AstPrinter {
         s.push('(');
         s.push_str(name.as_ref());
 
-        exprs.iter()
-            .map(|expr| self.visit(expr))
-            .for_each(|res| {
-                s.push_str(format!(" {}", res).as_str());
-            });
+        exprs.iter().map(|expr| self.visit(expr)).for_each(|res| {
+            s.push_str(format!(" {}", res).as_str());
+        });
 
         s.push(')');
         s
@@ -23,18 +21,19 @@ impl AstPrinter {
 impl ExprVisitor<String> for AstPrinter {
     fn visit(&mut self, expression: &Expr) -> String {
         match expression {
-            Expr::Binary { left, operator, right } => {
-                self.parenthesize(&operator.lexeme, &[left, right])
-            }
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => self.parenthesize(&operator.lexeme, &[left, right]),
             Expr::Grouping { expression } => self.parenthesize("group", &[expression]),
             Expr::Literal { value } => match value {
                 Object::Number(n) => n.to_string(),
+                Object::Bool(b) => b.to_string(),
                 Object::String(s) => s.clone(),
                 Object::Nil => String::from("nil"),
-            }
-            Expr::Unary { operator, right } => {
-                self.parenthesize(&operator.lexeme, &[right])
-            }
+            },
+            Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),
         }
     }
 }

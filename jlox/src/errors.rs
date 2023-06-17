@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+#[derive(Debug)]
 pub struct LoxError {
     line: usize,
     location: String,
@@ -30,6 +31,14 @@ pub fn error(line: usize, message: &str) -> LoxError {
     LoxError {
         line,
         location: String::new(),
+        message: message.into(),
+    }
+}
+
+pub fn error_with_location(line: usize, location: &impl AsRef<str>, message: &str) -> LoxError {
+    LoxError {
+        line,
+        location: location.as_ref().into(),
         message: message.into(),
     }
 }
