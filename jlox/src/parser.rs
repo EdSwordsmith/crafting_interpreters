@@ -208,7 +208,21 @@ impl State {
         Ok(expr)
     }
 
+    fn comma(&mut self) -> Result<Expr, LoxError> {
+        let mut expr = self.equality()?;
+
+        while self.matches(&[TokenType::Comma]) {
+            expr = Expr::Binary {
+                left: Box::new(expr),
+                operator: self.previous().clone(),
+                right: Box::new(self.equality()?),
+            }
+        }
+
+        Ok(expr)
+    }
+
     fn expression(&mut self) -> Result<Expr, LoxError> {
-        self.equality()
+        self.comma()
     }
 }
