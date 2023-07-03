@@ -131,6 +131,27 @@ impl State {
             Ok(Expr::Grouping {
                 expression: Box::new(expr),
             })
+        } else if self.matches(&[TokenType::BangEqual, TokenType::Equal]) {
+            let err = parser_error(self.previous(), "Expect left-hand operator.");
+            self.comparison()?;
+            Err(err)
+        } else if self.matches(&[
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual,
+        ]) {
+            let err = parser_error(self.previous(), "Expect left-hand operator.");
+            self.term()?;
+            Err(err)
+        } else if self.matches(&[TokenType::Plus]) {
+            let err = parser_error(self.previous(), "Expect left-hand operator.");
+            self.factor()?;
+            Err(err)
+        } else if self.matches(&[TokenType::Star, TokenType::Slash]) {
+            let err = parser_error(self.previous(), "Expect left-hand operator.");
+            self.unary()?;
+            Err(err)
         } else {
             Err(parser_error(self.peek(), "Expect expression."))
         }
