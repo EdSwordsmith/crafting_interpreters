@@ -31,3 +31,6 @@ conditional -> equality ( "?" expression ":" conditional )?
 
 With this rule instead, the operator is right associative.
 
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/6_ternary_operator).
+
+
