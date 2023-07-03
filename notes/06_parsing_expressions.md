@@ -33,4 +33,23 @@ With this rule instead, the operator is right associative.
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/6_ternary_operator).
 
+3. I needed a little help getting this one right, I was wondering where should the error productions should be placed. I probably should've understood that the only place it makes sense is with the highest precedence, since these errors will be caught here but get a generic "Expect expression." error.
+So the idea would be to have the following as the grammar:
+
+expression → equality ;
+equality   → comparison ( ( "!=" | "==" ) comparison )* ;
+comparison → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+term       → factor ( ( "-" | "+" ) factor )* ;
+factor     → unary ( ( "/" | "*" ) unary )* ;
+unary      → ( "!" | "-" ) unary;
+primary    → NUMBER | STRING | "true" | "false" | "nil"
+           | "(" expression ")"
+           // Rules for the error productions
+           | ( "!=" | "==" ) equality
+           | ( ">" | ">=" | "<" | "<=" ) comparison
+           | ( "+" ) term
+           | ( "/" | "*" ) factor ;
+           
+We don't have an error production starting with "-", because there's an unary expression with this operator. Like before I went to check if my grammar rules were correct looking at the solution, but I found that in the solution's there's a decrement and increment expressions which I couldn't find in the book so far. Anyway I decided to keep what I have and just implement the error productions.
+
 
