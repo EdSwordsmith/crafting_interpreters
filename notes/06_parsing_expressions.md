@@ -52,4 +52,4 @@ primary    → NUMBER | STRING | "true" | "false" | "nil"
            
 We don't have an error production starting with "-", because there's an unary expression with this operator. Like before I went to check if my grammar rules were correct looking at the solution, but I found that in the solution's there's a decrement and increment expressions which I couldn't find in the book so far. Anyway I decided to keep what I have and just implement the error productions.
 
-
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/6_error_productions).
