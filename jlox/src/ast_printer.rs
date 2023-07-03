@@ -34,6 +34,11 @@ impl ExprVisitor<String> for AstPrinter {
                 Object::Nil => String::from("nil"),
             },
             Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),
+            Expr::Ternary {
+                condition,
+                if_true,
+                if_false,
+            } => self.parenthesize("ternary", &[condition, if_true, if_false]),
         }
     }
 }

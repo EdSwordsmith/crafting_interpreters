@@ -69,6 +69,8 @@ impl State {
             '+' => self.add_token(TokenType::Plus),
             ';' => self.add_token(TokenType::Semicolon),
             '*' => self.add_token(TokenType::Star),
+            '?' => self.add_token(TokenType::QuestionMark),
+            ':' => self.add_token(TokenType::Colon),
 
             '!' => {
                 let token = if self.matches('=') {

@@ -23,6 +23,11 @@ pub enum Expr {
         operator: Token,
         right: Box<Expr>,
     },
+    Ternary {
+        condition: Box<Expr>,
+        if_true: Box<Expr>,
+        if_false: Box<Expr>,
+    },
 }
 
 pub trait ExprVisitor<T> {

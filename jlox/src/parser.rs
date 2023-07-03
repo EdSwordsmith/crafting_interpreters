@@ -208,7 +208,25 @@ impl State {
         Ok(expr)
     }
 
+    fn conditional(&mut self) -> Result<Expr, LoxError> {
+        let mut expr = self.equality()?;
+
+        if self.matches(&[TokenType::QuestionMark]) {
+            let if_true = Box::new(self.expression()?);
+            self.consume(&TokenType::Colon, "Expect ':' in ternary expression.")?;
+            let if_false = Box::new(self.conditional()?);
+
+            expr = Expr::Ternary {
+                condition: Box::new(expr),
+                if_true,
+                if_false,
+            }
+        }
+
+        Ok(expr)
+    }
+
     fn expression(&mut self) -> Result<Expr, LoxError> {
-        self.equality()
+        self.conditional()
     }
 }
