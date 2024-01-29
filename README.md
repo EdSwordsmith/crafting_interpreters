@@ -14,3 +14,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 ### II. A Tree-Walk Interpreter
 - [Scanner](notes/04_scanner.md)
 - [Representing Code](notes/05_representing_code.md)
+- [Parsing Expressions](notes/06_parsing_expressions.md)
