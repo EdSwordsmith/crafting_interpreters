@@ -149,7 +149,11 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
             }
 
             Stmt::Var { name, initializer } => {
-                let value = self.visit_expr(initializer)?;
+                let value = if let Some(expr) = initializer {
+                    Some(self.visit_expr(&expr)?)
+                } else {
+                    None
+                };
                 self.environment.define(name.lexeme.clone(), value);
                 Ok(())
             }
@@ -167,7 +171,7 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
 }
 
 struct Environment {
-    scopes: Vec<HashMap<String, Object>>,
+    scopes: Vec<HashMap<String, Option<Object>>>,
 }
 
 impl Default for Environment {
@@ -180,7 +184,7 @@ impl Default for Environment {
 }
 
 impl Environment {
-    fn define(&mut self, name: String, value: Object) {
+    fn define(&mut self, name: String, value: Option<Object>) {
         if let Some(values) = self.scopes.last_mut() {
             values.insert(name, value);
         }
@@ -188,20 +192,30 @@ impl Environment {
 
     fn get(&self, name: &Token) -> Result<Object, RuntimeError> {
         let error_msg = format!("Undefined variable '{}'.", name.lexeme);
+        let unit_msg = format!("Uninitialized variable '{}'.", name.lexeme);
 
-        self.scopes
+        let res = self
+            .scopes
             .iter()
             .filter_map(|values| values.get(&name.lexeme))
-            .last()
-            .ok_or(runtime_error(name, &error_msg))
-            .cloned()
+            .last();
+
+        if let Some(res) = res {
+            if let Some(res) = res {
+                Ok(res.clone())
+            } else {
+                Err(runtime_error(name, &unit_msg))
+            }
+        } else {
+            Err(runtime_error(name, &error_msg))
+        }
     }
 
     fn assign(&mut self, name: &Token, value: Object) -> Result<Object, RuntimeError> {
         self.get(name)?;
         for values in self.scopes.iter_mut().rev() {
             if values.contains_key(&name.lexeme) {
-                values.insert(name.lexeme.clone(), value.clone());
+                values.insert(name.lexeme.clone(), Some(value.clone()));
             }
         }
 

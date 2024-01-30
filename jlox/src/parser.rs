@@ -306,9 +306,9 @@ impl State {
             .clone();
 
         let initializer = if self.matches(&[TokenType::Equal]) {
-            self.expression().map_err(|error| vec![error])?
+            Some(Box::new(self.expression().map_err(|error| vec![error])?))
         } else {
-            Expr::Literal { value: Object::Nil }
+            None
         };
 
         self.consume(
@@ -316,11 +316,7 @@ impl State {
             "Expect ';' after variable declaration.",
         )
         .map_err(|error| vec![error])?;
-
-        Ok(Stmt::Var {
-            name,
-            initializer: Box::new(initializer),
-        })
+        Ok(Stmt::Var { name, initializer })
     }
 
     fn declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {
