@@ -8,7 +8,9 @@ I also took the liberty to make the `assign` method of `Environment` return a re
 
 ## Challenges
 
-1. WIP
+1. For this I feel like my solution may not be the most perfect when it comes to errors being reported. It will try to parse statements and if it fails it will try to parse an expression. A problem with this is that if neither parse then the errors reported are about parsing an expression. Another thing about my implementation is that it allows a file that is just a single expression instead of statements (which in my own opinion is actually cool :D).
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/8_exprs_repl).
 
 2. For this, I had to rewrite how I represent variable declarations in the AST, as I made it have an expression initializer always even when there isn't one, giving it as default the literal `nil` inside the parser. Other than that I had to make it so the `Environment` stores an optional to distinguish between between initialized and not initialized variables that are also declared. With this I could return an additional error inside the `get` method in `Environment`.
 
