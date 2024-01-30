@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
     ast::{Expr, ExprVisitor, Object, Stmt, StmtVisitor},
     errors::RuntimeError,
+    parser::Node,
     scanner::{Token, TokenType},
 };
 
@@ -19,9 +20,17 @@ fn runtime_error(token: &Token, message: &str) -> RuntimeError {
 }
 
 impl Interpreter {
-    pub fn interpret(&mut self, statements: &[Stmt]) -> Result<(), RuntimeError> {
-        for statement in statements {
-            self.visit_stmt(statement)?;
+    pub fn interpret(&mut self, node: &Node) -> Result<(), RuntimeError> {
+        match node {
+            Node::Stmts(statements) => {
+                for statement in statements.iter() {
+                    self.visit_stmt(statement)?;
+                }
+            }
+            Node::Expr(expression) => {
+                let value = self.visit_expr(expression)?;
+                println!("{value}");
+            }
         }
 
         Ok(())

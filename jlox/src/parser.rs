@@ -6,7 +6,18 @@ use crate::{
     scanner::{Token, TokenType},
 };
 
-pub fn parse(tokens: Vec<Token>) -> Result<Vec<Stmt>, Errors> {
+pub enum Node {
+    Stmts(Vec<Stmt>),
+    Expr(Expr),
+}
+
+pub fn parse(tokens: Vec<Token>) -> Result<Node, Errors> {
+    let stmts = parse_stmts(tokens.clone()).map(Node::Stmts);
+    let expr = parse_expr(tokens).map(Node::Expr);
+    stmts.or(expr)
+}
+
+pub fn parse_stmts(tokens: Vec<Token>) -> Result<Vec<Stmt>, Errors> {
     let mut state = State::new(tokens);
     let mut statements = Vec::new();
     let mut errors = Vec::new();
@@ -23,6 +34,13 @@ pub fn parse(tokens: Vec<Token>) -> Result<Vec<Stmt>, Errors> {
     } else {
         Ok(statements)
     }
+}
+
+pub fn parse_expr(tokens: Vec<Token>) -> Result<Expr, Errors> {
+    let mut state = State::new(tokens);
+    state
+        .expression()
+        .map_err(|error| Errors::Parsing(vec![error]))
 }
 
 fn parser_error(token: &Token, message: &str) -> LoxError {
