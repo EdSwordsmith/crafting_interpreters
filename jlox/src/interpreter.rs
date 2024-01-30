@@ -76,9 +76,15 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
                     (TokenType::Plus, Object::String(l), Object::String(r)) => {
                         Ok(Object::String(l + r.as_str()))
                     }
+                    (TokenType::Plus, Object::String(l), r) => {
+                        Ok(Object::String(l + r.to_string().as_str()))
+                    }
+                    (TokenType::Plus, l, Object::String(r)) => {
+                        Ok(Object::String(l.to_string() + r.as_str()))
+                    }
                     (TokenType::Plus, _, _) => Err(runtime_error(
                         operator,
-                        "Operands must be two numbers or two strings.",
+                        "Operands must be at least one string or two numbers.",
                     )),
 
                     (TokenType::Greater, Object::Number(l), Object::Number(r)) => {
