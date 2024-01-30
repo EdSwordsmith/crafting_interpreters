@@ -10,7 +10,9 @@ I also took the liberty to make the `assign` method of `Environment` return a re
 
 1. WIP
 
-2. WIP
+2. For this, I had to rewrite how I represent variable declarations in the AST, as I made it have an expression initializer always even when there isn't one, giving it as default the literal `nil` inside the parser. Other than that I had to make it so the `Environment` stores an optional to distinguish between between initialized and not initialized variables that are also declared. With this I could return an additional error inside the `get` method in `Environment`.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/8_unit_vars).
 
 3. I expected it to print out `3`, since we are introducing a variable local to a new scope to the value of the existing one `+ 2`. However, in Python it threw an error stating that it's not possible to initialize a local variable with its own value. I've also tested in Rust, where the value `3` was also printed. 
 
