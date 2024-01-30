@@ -11,7 +11,7 @@ Some things were easier to implement in Rust when compared to the Java present i
 ## Challenges
 1. Yes, I would extend it to allow comparison between strings with ordering being based on the corresponding code for each character, as it is done in Python for example. I wouldn't extend it for comparison among mixed types as I believe that is confusing and implicitly converting one of the values before comparing in a way that isn't completely clear to the programmer.
 
-2. 
+2. The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/7_implicit_string_concat).
 
 3. So the following is what happens when dividing by zero:
 ```
@@ -24,3 +24,5 @@ NaN
 ```
 
 We may get `inf` and `-inf`, but if we do any operation that is undefined with infinity then we will get `NaN` as this is how `f64` works in Rust. I've checked and doubles in Java seem to work in the same way. On the other hand, Python throws a runtime error when dividing by zero. I like the approach taken by Rust and Java, as resulting in infinity is mathematically correct and some operations may actually be used with these values and could be helpful in some programs.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/7_divide_by_zero).

@@ -15,3 +15,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [Scanner](notes/04_scanner.md)
 - [Representing Code](notes/05_representing_code.md)
 - [Parsing Expressions](notes/06_parsing_expressions.md)
+- [Evaluating Expressions](notes/07_evaluating_expressions.md)
