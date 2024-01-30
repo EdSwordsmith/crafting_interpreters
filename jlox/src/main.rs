@@ -1,40 +1,42 @@
 use std::{env, fs, println};
 
 use errors::{Errors, ReportErrors};
+use interpreter::Interpreter;
 use rustyline::{DefaultEditor, Result as RLResult};
-
-use crate::{ast::ExprVisitor, ast_printer::AstPrinter};
 
 mod ast;
 mod ast_printer;
 mod errors;
+mod interpreter;
 mod parser;
 mod scanner;
 
 fn run_file(path: &str) {
+    let mut interpreter = Interpreter {};
     let source = fs::read_to_string(path).unwrap();
-    run(source).report_and_exit(65);
+    run(&mut interpreter, source).report_and_exit();
 }
 
 fn run_prompt() -> RLResult<()> {
+    let mut interpreter = Interpreter {};
     let mut rl = DefaultEditor::new().unwrap();
     loop {
         let line = rl.readline("> ")?;
         rl.add_history_entry(line.clone())?;
-        run(line).report();
+        run(&mut interpreter, line).report();
     }
 }
 
-fn run(source: String) -> Result<(), Errors> {
+fn run(interpreter: &mut Interpreter, source: String) -> Result<(), Errors> {
     let mut errors = Vec::new();
     let tokens = scanner::scan_tokens(source).unwrap(&mut errors);
 
     if !errors.is_empty() {
-        return Err(Errors(errors));
+        return Err(Errors::Parsing(errors));
     }
 
     let expr = parser::parse(tokens)?;
-    println!("{:?}", AstPrinter.visit(&expr));
+    interpreter.interpret(&expr).map_err(Errors::Runtime)?;
 
     Ok(())
 }

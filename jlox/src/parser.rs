@@ -10,7 +10,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Expr, Errors> {
     let mut state = State::new(tokens);
     match state.expression() {
         Ok(expr) => Ok(expr),
-        Err(error) => Err(Errors(vec![error])),
+        Err(error) => Err(Errors::Parsing(vec![error])),
     }
 }
 
