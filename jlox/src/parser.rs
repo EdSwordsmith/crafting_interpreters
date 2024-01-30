@@ -1,16 +1,27 @@
 use std::matches;
 
 use crate::{
-    ast::{Expr, Object},
+    ast::{Expr, Object, Stmt},
     errors::{error_with_location, Errors, LoxError},
     scanner::{Token, TokenType},
 };
 
-pub fn parse(tokens: Vec<Token>) -> Result<Expr, Errors> {
+pub fn parse(tokens: Vec<Token>) -> Result<Vec<Stmt>, Errors> {
     let mut state = State::new(tokens);
-    match state.expression() {
-        Ok(expr) => Ok(expr),
-        Err(error) => Err(Errors::Parsing(vec![error])),
+    let mut statements = Vec::new();
+    let mut errors = Vec::new();
+
+    while !state.is_at_end() {
+        match state.declaration() {
+            Ok(stmt) => statements.push(stmt),
+            Err(mut errs) => errors.append(&mut errs),
+        }
+    }
+
+    if errors.len() > 0 {
+        Err(Errors::Parsing(errors))
+    } else {
+        Ok(statements)
     }
 }
 
@@ -131,6 +142,10 @@ impl State {
             Ok(Expr::Grouping {
                 expression: Box::new(expr),
             })
+        } else if self.matches(&[TokenType::Identifier]) {
+            Ok(Expr::Variable {
+                name: self.previous().clone(),
+            })
         } else {
             Err(parser_error(self.peek(), "Expect expression."))
         }
@@ -208,7 +223,117 @@ impl State {
         Ok(expr)
     }
 
+    fn assignment(&mut self) -> Result<Expr, LoxError> {
+        let expr = self.equality()?;
+
+        if self.matches(&[TokenType::Equal]) {
+            let equals = self.previous().clone();
+            let value = self.assignment()?;
+
+            if let Expr::Variable { name } = expr {
+                Ok(Expr::Assignment {
+                    name: name.clone(),
+                    value: Box::new(value),
+                })
+            } else {
+                Err(parser_error(&equals, "Invalid assignment target."))
+            }
+        } else {
+            Ok(expr)
+        }
+    }
+
     fn expression(&mut self) -> Result<Expr, LoxError> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        let expression = self.expression().map_err(|error| vec![error])?;
+        self.consume(&TokenType::Semicolon, "Expect ';' after value.")
+            .map_err(|error| vec![error])?;
+        Ok(Stmt::Expression {
+            expression: Box::new(expression),
+        })
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        let value = self.expression().map_err(|error| vec![error])?;
+        self.consume(&TokenType::Semicolon, "Expect ';' after value.")
+            .map_err(|error| vec![error])?;
+        Ok(Stmt::Print {
+            expression: Box::new(value),
+        })
+    }
+
+    fn block(&mut self) -> Result<Vec<Stmt>, Vec<LoxError>> {
+        let mut statements = Vec::new();
+        let mut errors = Vec::new();
+
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+            match self.declaration() {
+                Ok(stmt) => statements.push(stmt),
+                Err(mut errs) => errors.append(&mut errs),
+            }
+        }
+
+        match self.consume(&TokenType::RightBrace, "Expect '}' after block.") {
+            Ok(_) => {}
+            Err(error) => errors.push(error),
+        }
+
+        if errors.len() > 0 {
+            Err(errors)
+        } else {
+            Ok(statements)
+        }
+    }
+
+    fn statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        if self.matches(&[TokenType::Print]) {
+            self.print_statement()
+        } else if self.matches(&[TokenType::LeftBrace]) {
+            let statements = self.block()?;
+            Ok(Stmt::Block { statements })
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        let name = self
+            .consume(&TokenType::Identifier, "Expect variable name.")
+            .map_err(|error| vec![error])?
+            .clone();
+
+        let initializer = if self.matches(&[TokenType::Equal]) {
+            self.expression().map_err(|error| vec![error])?
+        } else {
+            Expr::Literal { value: Object::Nil }
+        };
+
+        self.consume(
+            &TokenType::Semicolon,
+            "Expect ';' after variable declaration.",
+        )
+        .map_err(|error| vec![error])?;
+
+        Ok(Stmt::Var {
+            name,
+            initializer: Box::new(initializer),
+        })
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        let res = if self.matches(&[TokenType::Var]) {
+            self.var_declaration()
+        } else {
+            self.statement()
+        };
+
+        if let Err(_) = res {
+            self.synchronize();
+        }
+
+        res
     }
 }

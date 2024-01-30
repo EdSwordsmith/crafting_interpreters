@@ -12,13 +12,13 @@ mod parser;
 mod scanner;
 
 fn run_file(path: &str) {
-    let mut interpreter = Interpreter {};
+    let mut interpreter = Interpreter::default();
     let source = fs::read_to_string(path).unwrap();
     run(&mut interpreter, source).report_and_exit();
 }
 
 fn run_prompt() -> RLResult<()> {
-    let mut interpreter = Interpreter {};
+    let mut interpreter = Interpreter::default();
     let mut rl = DefaultEditor::new().unwrap();
     loop {
         let line = rl.readline("> ")?;
@@ -35,8 +35,10 @@ fn run(interpreter: &mut Interpreter, source: String) -> Result<(), Errors> {
         return Err(Errors::Parsing(errors));
     }
 
-    let expr = parser::parse(tokens)?;
-    interpreter.interpret(&expr).map_err(Errors::Runtime)?;
+    let statements = parser::parse(tokens)?;
+    interpreter
+        .interpret(&statements)
+        .map_err(Errors::Runtime)?;
 
     Ok(())
 }

@@ -34,6 +34,10 @@ impl Display for Object {
 }
 
 pub enum Expr {
+    Assignment {
+        name: Token,
+        value: Box<Expr>,
+    },
     Binary {
         left: Box<Expr>,
         operator: Token,
@@ -49,8 +53,22 @@ pub enum Expr {
         operator: Token,
         right: Box<Expr>,
     },
+    Variable {
+        name: Token,
+    },
 }
 
 pub trait ExprVisitor<T> {
-    fn visit(&mut self, expression: &Expr) -> T;
+    fn visit_expr(&mut self, expression: &Expr) -> T;
+}
+
+pub enum Stmt {
+    Block { statements: Vec<Stmt> },
+    Expression { expression: Box<Expr> },
+    Print { expression: Box<Expr> },
+    Var { name: Token, initializer: Box<Expr> },
+}
+
+pub trait StmtVisitor<T> {
+    fn visit_stmt(&mut self, statement: &Stmt) -> T;
 }
