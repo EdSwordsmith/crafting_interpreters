@@ -57,7 +57,11 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
                     }
 
                     (TokenType::Slash, Object::Number(l), Object::Number(r)) => {
-                        Ok(Object::Number(l / r))
+                        if r != 0.0 {
+                            Ok(Object::Number(l / r))
+                        } else {
+                            Err(runtime_error(operator, "Cannot divide by zero."))
+                        }
                     }
                     (TokenType::Slash, _, _) => {
                         Err(runtime_error(operator, "Operands must be numbers."))
