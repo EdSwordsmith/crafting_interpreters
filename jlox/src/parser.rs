@@ -18,10 +18,10 @@ pub fn parse(tokens: Vec<Token>) -> Result<Vec<Stmt>, Errors> {
         }
     }
 
-    if errors.len() > 0 {
-        Err(Errors::Parsing(errors))
-    } else {
+    if errors.is_empty() {
         Ok(statements)
+    } else {
+        Err(Errors::Parsing(errors))
     }
 }
 
@@ -223,8 +223,36 @@ impl State {
         Ok(expr)
     }
 
+    fn and(&mut self) -> Result<Expr, LoxError> {
+        let mut expr = self.equality()?;
+
+        while self.matches(&[TokenType::And]) {
+            expr = Expr::Logical {
+                left: Box::new(expr),
+                operator: self.previous().clone(),
+                right: Box::new(self.equality()?),
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn or(&mut self) -> Result<Expr, LoxError> {
+        let mut expr = self.and()?;
+
+        while self.matches(&[TokenType::Or]) {
+            expr = Expr::Logical {
+                left: Box::new(expr),
+                operator: self.previous().clone(),
+                right: Box::new(self.and()?),
+            }
+        }
+
+        Ok(expr)
+    }
+
     fn assignment(&mut self) -> Result<Expr, LoxError> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if self.matches(&[TokenType::Equal]) {
             let equals = self.previous().clone();
@@ -232,7 +260,7 @@ impl State {
 
             if let Expr::Variable { name } = expr {
                 Ok(Expr::Assignment {
-                    name: name.clone(),
+                    name,
                     value: Box::new(value),
                 })
             } else {
@@ -281,16 +309,108 @@ impl State {
             Err(error) => errors.push(error),
         }
 
-        if errors.len() > 0 {
-            Err(errors)
-        } else {
+        if errors.is_empty() {
             Ok(statements)
+        } else {
+            Err(errors)
         }
     }
 
+    fn if_statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        self.consume(&TokenType::LeftParen, "Expect '(' after 'if'.")
+            .map_err(|err| vec![err])?;
+        let condition = Box::new(self.expression().map_err(|err| vec![err])?);
+        self.consume(&TokenType::RightParen, "Expect ')' after if condition.")
+            .map_err(|err| vec![err])?;
+
+        let then_branch = Box::new(self.statement()?);
+        let else_branch = if self.matches(&[TokenType::Else]) {
+            Some(Box::new(self.statement()?))
+        } else {
+            None
+        };
+
+        Ok(Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        })
+    }
+
+    fn while_statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        self.consume(&TokenType::LeftParen, "Expect '(' after 'while'.")
+            .map_err(|err| vec![err])?;
+        let condition = Box::new(self.expression().map_err(|err| vec![err])?);
+        self.consume(&TokenType::RightParen, "Expect ')' after condition.")
+            .map_err(|err| vec![err])?;
+        let body = Box::new(self.statement()?);
+        Ok(Stmt::While { condition, body })
+    }
+
+    fn for_statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        self.consume(&TokenType::LeftParen, "Expect '(' after 'for'.")
+            .map_err(|err| vec![err])?;
+        let initializer = if self.matches(&[TokenType::Semicolon]) {
+            None
+        } else if self.matches(&[TokenType::Var]) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        let condition = if self.check(&TokenType::Semicolon) {
+            Box::new(Expr::Literal {
+                value: Object::Bool(true),
+            })
+        } else {
+            Box::new(self.expression().map_err(|err| vec![err])?)
+        };
+        self.consume(&TokenType::Semicolon, "Expect ';' after loop condition.")
+            .map_err(|err| vec![err])?;
+
+        let increment = if self.check(&TokenType::RightParen) {
+            None
+        } else {
+            Some(Box::new(self.expression().map_err(|err| vec![err])?))
+        };
+        self.consume(&TokenType::RightParen, "Expect ')' after condition.")
+            .map_err(|err| vec![err])?;
+
+        let mut body = self.statement()?;
+        if let Some(increment) = increment {
+            body = Stmt::Block {
+                statements: vec![
+                    body,
+                    Stmt::Expression {
+                        expression: increment,
+                    },
+                ],
+            }
+        }
+
+        body = Stmt::While {
+            condition,
+            body: Box::new(body),
+        };
+
+        if let Some(initializer) = initializer {
+            body = Stmt::Block {
+                statements: vec![initializer, body],
+            }
+        }
+
+        Ok(body)
+    }
+
     fn statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
-        if self.matches(&[TokenType::Print]) {
+        if self.matches(&[TokenType::For]) {
+            self.for_statement()
+        } else if self.matches(&[TokenType::If]) {
+            self.if_statement()
+        } else if self.matches(&[TokenType::Print]) {
             self.print_statement()
+        } else if self.matches(&[TokenType::While]) {
+            self.while_statement()
         } else if self.matches(&[TokenType::LeftBrace]) {
             let statements = self.block()?;
             Ok(Stmt::Block { statements })
@@ -330,7 +450,7 @@ impl State {
             self.statement()
         };
 
-        if let Err(_) = res {
+        if res.is_err() {
             self.synchronize();
         }
 

@@ -17,3 +17,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [Parsing Expressions](notes/06_parsing_expressions.md)
 - [Evaluating Expressions](notes/07_evaluating_expressions.md)
 - [Statements and State](notes/08_statements_and_state.md)
+- [Control Flow](notes/09_control_flow.md)

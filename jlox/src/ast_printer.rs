@@ -39,6 +39,7 @@ impl ExprVisitor<String> for AstPrinter {
             Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),
             Expr::Variable { name } => format!("(var {})", name.lexeme),
             Expr::Assignment { .. } => todo!(),
+            Expr::Logical { .. } => todo!(),
         }
     }
 }

@@ -49,6 +49,11 @@ pub enum Expr {
     Literal {
         value: Object,
     },
+    Logical {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
+    },
     Unary {
         operator: Token,
         right: Box<Expr>,
@@ -63,10 +68,28 @@ pub trait ExprVisitor<T> {
 }
 
 pub enum Stmt {
-    Block { statements: Vec<Stmt> },
-    Expression { expression: Box<Expr> },
-    Print { expression: Box<Expr> },
-    Var { name: Token, initializer: Box<Expr> },
+    Block {
+        statements: Vec<Stmt>,
+    },
+    Expression {
+        expression: Box<Expr>,
+    },
+    If {
+        condition: Box<Expr>,
+        then_branch: Box<Stmt>,
+        else_branch: Option<Box<Stmt>>,
+    },
+    Print {
+        expression: Box<Expr>,
+    },
+    Var {
+        name: Token,
+        initializer: Box<Expr>,
+    },
+    While {
+        condition: Box<Expr>,
+        body: Box<Stmt>,
+    },
 }
 
 pub trait StmtVisitor<T> {

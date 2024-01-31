@@ -130,6 +130,19 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
                 let value = self.visit_expr(value)?;
                 self.environment.assign(name, value)
             }
+
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                let left = self.visit_expr(left)?;
+                match (&operator.token_type, left) {
+                    (TokenType::Or, left) if left.truthy() => Ok(left),
+                    (TokenType::And, left) if !left.truthy() => Ok(left),
+                    _ => self.visit_expr(right),
+                }
+            }
         }
     }
 }
@@ -160,6 +173,28 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
                     self.visit_stmt(statement)?;
                 }
                 self.environment.pop();
+                Ok(())
+            }
+
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                let condition_value = self.visit_expr(condition)?;
+                if condition_value.truthy() {
+                    self.visit_stmt(then_branch)?;
+                } else if let Some(else_branch) = else_branch {
+                    self.visit_stmt(else_branch)?;
+                }
+
+                Ok(())
+            }
+
+            Stmt::While { condition, body } => {
+                while self.visit_expr(condition)?.truthy() {
+                    self.visit_stmt(body)?;
+                }
                 Ok(())
             }
         }
