@@ -36,6 +36,6 @@ def recur():
 
 Functional programming languages like Haskell don't feature loops and recursion is used instead. In languages like Common Lisp or Scheme, I believe that loops exists but are instead a macro which will turn into a recursive call.
 
-3. WIP
+3. This challenge was similar to what I had to do in my programming languages course. Part of that course's first project was implementing an interpreter for a simple imperative language and one of the instructions was a break instruction. The way I implemented was similar, making the visitor for statements return if the program should break or not.
 
-<!-- The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/8_unit_vars). -->
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/9_break).
