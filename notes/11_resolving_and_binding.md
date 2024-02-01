@@ -10,6 +10,8 @@ EDIT: After starting one of the challenges, I ran the examples to see if I had b
 
 2. I've tested this with Rust and it's allowed. As I've mentioned before, shadowing is allowed always. Maybe it's because I'm very used to this but I agree with this idea as only after that declaration that the name refers to a different variable so it makes sense to allow the expression in the initializer to refer the previous variable.
 
-3. WIP
+3. Thought about adding enum that would be used instead of a boolean to check if variables were used or not, setting variables to used when lookup is called. Then I can check if these are unused when a scope ends if there are any unused variables when `end_scope` is called. The errors I'm returning were very lazy and just indicate that there are unused variables.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/11_unused).
 
 4. WIP
