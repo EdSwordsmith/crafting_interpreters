@@ -14,8 +14,15 @@ enum FunctionType {
     Function,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum LocalStatus {
+    Declared,
+    Defined,
+    Used,
+}
+
 pub struct Resolver<'a> {
-    scopes: Vec<HashMap<String, bool>>,
+    scopes: Vec<HashMap<String, LocalStatus>>,
     interpreter: &'a mut Interpreter,
     current_function: FunctionType,
 }
@@ -33,13 +40,20 @@ impl<'a> Resolver<'a> {
         self.scopes.push(HashMap::new());
     }
 
-    fn end_scope(&mut self) {
-        self.scopes.pop();
+    fn end_scope(&mut self) -> bool {
+        if let Some(scope) = self.scopes.pop() {
+            scope.iter().any(|(_, status)| *status != LocalStatus::Used)
+        } else {
+            false
+        }
     }
 
     fn declare(&mut self, name: &Token) -> Result<(), LoxError> {
         if let Some(scope) = self.scopes.last_mut() {
-            if scope.insert(name.lexeme.clone(), false).is_some() {
+            if scope
+                .insert(name.lexeme.clone(), LocalStatus::Declared)
+                .is_some()
+            {
                 return Err(parser_error(
                     name,
                     "Already a variable with this name in this scope.",
@@ -52,7 +66,7 @@ impl<'a> Resolver<'a> {
 
     fn define(&mut self, name: &Token) {
         if let Some(scope) = self.scopes.last_mut() {
-            scope.insert(name.lexeme.clone(), true);
+            scope.insert(name.lexeme.clone(), LocalStatus::Defined);
         }
     }
 
@@ -65,14 +79,11 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_local(&mut self, expr: &Expr, name: &Token) {
-        let index = self
-            .scopes
-            .iter()
-            .rev()
-            .position(|scope| scope.contains_key(&name.lexeme));
-
-        if let Some(index) = index {
-            self.interpreter.resolve(expr, index);
+        for (i, scope) in self.scopes.iter_mut().rev().enumerate() {
+            if scope.contains_key(&name.lexeme) {
+                scope.insert(name.lexeme.clone(), LocalStatus::Used);
+                self.interpreter.resolve(expr, i);
+            }
         }
     }
 
@@ -90,8 +101,12 @@ impl<'a> Resolver<'a> {
                 self.define(param);
             }
             self.resolve(body)?;
-            self.end_scope();
+            let unused = self.end_scope();
             self.current_function = enclosing;
+
+            if unused {
+                return Err(error(0, "Unused local variables in function."));
+            }
         }
 
         Ok(())
@@ -103,7 +118,8 @@ impl<'a> ExprVisitor<Result<(), LoxError>> for Resolver<'a> {
         match expression {
             Expr::Variable { name } => {
                 if let Some(scope) = self.scopes.last() {
-                    if !scope.get(&name.lexeme).unwrap_or(&true) {
+                    let local_status = scope.get(&name.lexeme).unwrap_or(&LocalStatus::Defined);
+                    if *local_status == LocalStatus::Declared {
                         return Err(error(
                             name.line,
                             "Can't read local variable in its own initializer.",
@@ -153,9 +169,12 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
             Stmt::Block { statements } => {
                 self.begin_scope();
                 self.resolve(statements)?;
-                self.end_scope();
 
-                Ok(())
+                if self.end_scope() {
+                    Err(error(0, "Unused local variables."))
+                } else {
+                    Ok(())
+                }
             }
 
             Stmt::Var { name, initializer } => {
