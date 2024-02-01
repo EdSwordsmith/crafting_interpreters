@@ -1,0 +1,15 @@
+var height = 20;
+
+for (var i = 1; i <= height; i = i + 1) {
+    var spaces = "";
+    for (var j = 0; j < height - i; j = j + 1) {
+        spaces = spaces + " ";
+    }
+
+    var stars = "";
+    for (var k = 0; k < 2 * i - 1; k = k + 1) {
+        stars = stars + "*";
+    }
+
+    print spaces + stars;
+}
