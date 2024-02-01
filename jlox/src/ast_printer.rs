@@ -36,6 +36,7 @@ impl ExprVisitor<String> for AstPrinter {
             Expr::Assignment { .. } => todo!(),
             Expr::Logical { .. } => todo!(),
             Expr::Call { .. } => todo!(),
+            Expr::Function { .. } => todo!(),
         }
     }
 }

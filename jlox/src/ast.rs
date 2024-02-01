@@ -16,6 +16,10 @@ pub enum Expr {
         paren: Token,
         arguments: Vec<Expr>,
     },
+    Function {
+        params: Vec<Token>,
+        body: Vec<Stmt>,
+    },
     Grouping {
         expression: Box<Expr>,
     },
@@ -50,8 +54,7 @@ pub enum Stmt {
     },
     Function {
         name: Token,
-        params: Vec<Token>,
-        body: Vec<Stmt>,
+        body: Box<Expr>,
     },
     If {
         condition: Box<Expr>,

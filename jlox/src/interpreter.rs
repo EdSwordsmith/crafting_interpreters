@@ -221,6 +221,12 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
                     Err(runtime_error(paren, "Can only call functions and classes."))
                 }
             }
+
+            Expr::Function { .. } => Ok(Object::Callable(Callable::LoxFn(
+                "".into(),
+                Box::new(expr.clone()),
+                self.environment.clone(),
+            ))),
         }
     }
 }
@@ -278,9 +284,9 @@ impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
                 Ok(None)
             }
 
-            Stmt::Function { name, .. } => {
+            Stmt::Function { name, body } => {
                 let rc = self.environment.clone();
-                let function = Callable::LoxFn(Box::new(statement.clone()), rc);
+                let function = Callable::LoxFn(name.lexeme.clone(), Box::new(*body.clone()), rc);
                 self.environment
                     .borrow_mut()
                     .define(name.lexeme.clone(), Object::Callable(function));

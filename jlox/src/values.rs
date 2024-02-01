@@ -1,7 +1,7 @@
 use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use crate::{
-    ast::Stmt,
+    ast::Expr,
     errors::RuntimeError,
     interpreter::{Environment, Interpreter},
 };
@@ -46,14 +46,14 @@ pub enum Callable {
         usize,
         fn(&mut Interpreter, Vec<Object>) -> Result<Object, RuntimeError>,
     ),
-    LoxFn(Box<Stmt>, Rc<RefCell<Environment>>),
+    LoxFn(String, Box<Expr>, Rc<RefCell<Environment>>),
 }
 
 impl PartialEq for Callable {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::NativeFn(name_l, _, _), Self::NativeFn(name_r, _, _)) => name_l == name_r,
-            (Self::LoxFn(l0, _), Self::LoxFn(r0, _)) => *l0 == *r0,
+            (Self::LoxFn(l0, l1, _), Self::LoxFn(r0, r1, _)) => *l0 == *r0 && l1 == r1,
             _ => false,
         }
     }
@@ -63,10 +63,7 @@ impl Display for Callable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Callable::NativeFn(_, _, _) => write!(f, "<native fn>"),
-            Callable::LoxFn(fun, _) => match *fun.clone() {
-                Stmt::Function { name, .. } => write!(f, "<fn {}>", name.lexeme),
-                _ => unreachable!(),
-            },
+            Callable::LoxFn(name, _, _) => write!(f, "<fn {}>", name),
         }
     }
 }
@@ -79,8 +76,8 @@ impl Callable {
     ) -> Result<Object, RuntimeError> {
         match self {
             Callable::NativeFn(_, _, function) => function(interpreter, arguments),
-            Callable::LoxFn(fun, closure) => match *fun.clone() {
-                Stmt::Function { params, body, .. } => {
+            Callable::LoxFn(_, fun, closure) => match *fun.clone() {
+                Expr::Function { params, body } => {
                     let environment = Environment::with_enclosing(closure.clone());
                     for (param, value) in params.iter().zip(arguments.iter()) {
                         environment
@@ -99,8 +96,8 @@ impl Callable {
     pub fn arity(&self) -> usize {
         match self {
             Callable::NativeFn(_, value, _) => *value,
-            Callable::LoxFn(fun, _) => match *fun.clone() {
-                Stmt::Function { params, .. } => params.len(),
+            Callable::LoxFn(_, fun, _) => match *fun.clone() {
+                Expr::Function { params, .. } => params.len(),
                 _ => unreachable!(),
             },
         }
