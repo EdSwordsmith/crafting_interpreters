@@ -187,7 +187,8 @@ impl State {
 
     fn add_token(&mut self, token_type: TokenType) {
         let lexeme = String::from(&self.source[self.start..self.current]);
-        self.tokens.push(Token::new(token_type, lexeme, self.line));
+        self.tokens
+            .push(Token::new(token_type, lexeme, self.line, self.current));
     }
 
     fn advance(&mut self) -> char {
@@ -234,8 +235,12 @@ impl State {
     }
 
     pub fn eof(&mut self) {
-        self.tokens
-            .push(Token::new(TokenType::Eof, "".into(), self.line));
+        self.tokens.push(Token::new(
+            TokenType::Eof,
+            "".into(),
+            self.line,
+            self.current,
+        ));
     }
 }
 

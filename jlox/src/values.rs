@@ -1,4 +1,9 @@
-use std::{cell::RefCell, fmt::Display, hash, rc::Rc};
+use std::{
+    cell::RefCell,
+    fmt::{Debug, Display},
+    hash,
+    rc::Rc,
+};
 
 use crate::{
     ast::Stmt,
@@ -6,7 +11,7 @@ use crate::{
     interpreter::{Environment, Interpreter},
 };
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Object {
     Number(f64),
     Bool(bool),
@@ -75,6 +80,12 @@ impl Display for Callable {
                 _ => unreachable!(),
             },
         }
+    }
+}
+
+impl Debug for Callable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self}")
     }
 }
 

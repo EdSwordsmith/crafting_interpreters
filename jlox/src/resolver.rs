@@ -30,7 +30,7 @@ impl<'a> Resolver<'a> {
     }
 
     fn begin_scope(&mut self) {
-        self.scopes.push(HashMap::new())
+        self.scopes.push(HashMap::new());
     }
 
     fn end_scope(&mut self) {
