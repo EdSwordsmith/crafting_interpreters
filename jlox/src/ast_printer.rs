@@ -1,4 +1,4 @@
-use crate::ast::{Expr, ExprVisitor, Object};
+use crate::ast::{Expr, ExprVisitor};
 
 pub struct AstPrinter;
 
@@ -30,16 +30,12 @@ impl ExprVisitor<String> for AstPrinter {
                 right,
             } => self.parenthesize(&operator.lexeme, &[left, right]),
             Expr::Grouping { expression } => self.parenthesize("group", &[expression]),
-            Expr::Literal { value } => match value {
-                Object::Number(n) => n.to_string(),
-                Object::Bool(b) => b.to_string(),
-                Object::String(s) => s.clone(),
-                Object::Nil => String::from("nil"),
-            },
+            Expr::Literal { value } => format!("{value}"),
             Expr::Unary { operator, right } => self.parenthesize(&operator.lexeme, &[right]),
             Expr::Variable { name } => format!("(var {})", name.lexeme),
             Expr::Assignment { .. } => todo!(),
             Expr::Logical { .. } => todo!(),
+            Expr::Call { .. } => todo!(),
         }
     }
 }

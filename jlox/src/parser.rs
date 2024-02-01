@@ -1,9 +1,10 @@
 use std::matches;
 
 use crate::{
-    ast::{Expr, Object, Stmt},
+    ast::{Expr, Stmt},
     errors::{error_with_location, Errors, LoxError},
     scanner::{Token, TokenType},
+    values::Object,
 };
 
 pub fn parse(tokens: Vec<Token>) -> Result<Vec<Stmt>, Errors> {
@@ -151,6 +152,45 @@ impl State {
         }
     }
 
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, LoxError> {
+        let mut arguments = Vec::new();
+        if !self.check(&TokenType::RightParen) {
+            arguments.push(self.expression()?);
+            while self.matches(&[TokenType::Comma]) {
+                if arguments.len() >= 255 {
+                    return Err(parser_error(
+                        self.peek(),
+                        "Can't have more than 255 arguments.",
+                    ));
+                }
+
+                arguments.push(self.expression()?);
+            }
+        }
+
+        let paren = self.consume(&TokenType::RightParen, "Expect ')' after arguments.")?;
+
+        Ok(Expr::Call {
+            callee: Box::new(callee),
+            paren: paren.clone(),
+            arguments,
+        })
+    }
+
+    fn call(&mut self) -> Result<Expr, LoxError> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.matches(&[TokenType::LeftParen]) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
     fn unary(&mut self) -> Result<Expr, LoxError> {
         if self.matches(&[TokenType::Bang, TokenType::Minus]) {
             Ok(Expr::Unary {
@@ -158,7 +198,7 @@ impl State {
                 right: Box::new(self.unary()?),
             })
         } else {
-            self.primary()
+            self.call()
         }
     }
 
@@ -402,6 +442,23 @@ impl State {
         Ok(body)
     }
 
+    fn return_statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        let keyword = self.previous().clone();
+        let value = if self.check(&TokenType::Semicolon) {
+            Expr::Literal { value: Object::Nil }
+        } else {
+            self.expression().map_err(|err| vec![err])?
+        };
+
+        self.consume(&TokenType::Semicolon, "Expect ';' after return value.")
+            .map_err(|err| vec![err])?;
+
+        Ok(Stmt::Return {
+            keyword,
+            expression: Box::new(value),
+        })
+    }
+
     fn statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
         if self.matches(&[TokenType::For]) {
             self.for_statement()
@@ -409,6 +466,8 @@ impl State {
             self.if_statement()
         } else if self.matches(&[TokenType::Print]) {
             self.print_statement()
+        } else if self.matches(&[TokenType::Return]) {
+            self.return_statement()
         } else if self.matches(&[TokenType::While]) {
             self.while_statement()
         } else if self.matches(&[TokenType::LeftBrace]) {
@@ -443,8 +502,59 @@ impl State {
         })
     }
 
+    fn function(&mut self, kind: &str) -> Result<Stmt, Vec<LoxError>> {
+        let name = self
+            .consume(&TokenType::Identifier, &format!("Expect {kind}, name."))
+            .map_err(|err| vec![err])?
+            .clone();
+
+        self.consume(
+            &TokenType::LeftParen,
+            &format!("Expect '(' after {kind} name."),
+        )
+        .map_err(|error| vec![error])?;
+
+        let mut params = Vec::new();
+
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if params.len() >= 255 {
+                    return Err(vec![parser_error(
+                        self.peek(),
+                        "Can't have more than 255 arguments.",
+                    )]);
+                }
+
+                let param = self
+                    .consume(&TokenType::Identifier, "Expect parameter name.")
+                    .map_err(|error| vec![error])?
+                    .clone();
+
+                params.push(param);
+
+                if !self.matches(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        self.consume(&TokenType::RightParen, "Expect ')' after parameters.")
+            .map_err(|error| vec![error])?;
+
+        self.consume(
+            &TokenType::LeftBrace,
+            &format!("Expect '{{' before {kind} body."),
+        )
+        .map_err(|error| vec![error])?;
+        let body = self.block()?;
+
+        Ok(Stmt::Function { name, params, body })
+    }
+
     fn declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {
-        let res = if self.matches(&[TokenType::Var]) {
+        let res = if self.matches(&[TokenType::Fun]) {
+            self.function("function")
+        } else if self.matches(&[TokenType::Var]) {
             self.var_declaration()
         } else {
             self.statement()

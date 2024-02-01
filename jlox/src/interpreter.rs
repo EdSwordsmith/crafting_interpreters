@@ -1,14 +1,20 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+use chrono::Utc;
 
 use crate::{
-    ast::{Expr, ExprVisitor, Object, Stmt, StmtVisitor},
+    ast::{Expr, ExprVisitor, Stmt, StmtVisitor},
     errors::RuntimeError,
     scanner::{Token, TokenType},
+    values::{
+        Callable::{self, NativeFn},
+        Object,
+    },
 };
 
-#[derive(Default)]
 pub struct Interpreter {
-    environment: Environment,
+    pub globals: Rc<RefCell<Environment>>,
+    pub environment: Rc<RefCell<Environment>>,
 }
 
 fn runtime_error(token: &Token, message: &str) -> RuntimeError {
@@ -18,13 +24,56 @@ fn runtime_error(token: &Token, message: &str) -> RuntimeError {
     }
 }
 
+macro_rules! native_fn {
+    ($env:expr, $name:expr, $arity:expr, $func:expr) => {
+        $env.borrow_mut().define(
+            $name.into(),
+            Object::Callable(NativeFn($name.into(), $arity, $func)),
+        );
+    };
+}
+
 impl Interpreter {
+    pub fn new() -> Self {
+        let environment = Environment::new();
+        native_fn!(environment, "clock", 0, |_, _| {
+            Ok(Object::Number(
+                Utc::now().timestamp_millis() as f64 / 1000.0,
+            ))
+        });
+
+        Self {
+            environment: environment.clone(),
+            globals: environment,
+        }
+    }
+
     pub fn interpret(&mut self, statements: &[Stmt]) -> Result<(), RuntimeError> {
         for statement in statements {
             self.visit_stmt(statement)?;
         }
 
         Ok(())
+    }
+
+    pub fn execute_block(
+        &mut self,
+        statements: &[Stmt],
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<Option<Object>, RuntimeError> {
+        let previous = self.environment.clone();
+        self.environment = environment;
+
+        let mut return_value = None;
+        for statement in statements.iter() {
+            if let Some(value) = self.visit_stmt(statement)? {
+                return_value = Some(value);
+                break;
+            }
+        }
+
+        self.environment = previous;
+        Ok(return_value)
     }
 }
 
@@ -124,11 +173,11 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
                 }
             }
 
-            Expr::Variable { name } => self.environment.get(name),
+            Expr::Variable { name } => self.environment.borrow().get(name),
 
             Expr::Assignment { name, value } => {
                 let value = self.visit_expr(value)?;
-                self.environment.assign(name, value)
+                self.environment.borrow_mut().assign(name, value)
             }
 
             Expr::Logical {
@@ -143,38 +192,65 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
                     _ => self.visit_expr(right),
                 }
             }
+
+            Expr::Call {
+                callee,
+                arguments,
+                paren,
+            } => {
+                let callee = self.visit_expr(callee)?;
+                let mut args = Vec::new();
+                for argument in arguments.iter() {
+                    args.push(self.visit_expr(argument)?);
+                }
+
+                if let Object::Callable(callee) = callee {
+                    if callee.arity() != args.len() {
+                        Err(runtime_error(
+                            paren,
+                            &format!(
+                                "Expected {} arguments but got instead {}.",
+                                callee.arity(),
+                                args.len()
+                            ),
+                        ))
+                    } else {
+                        callee.call(self, args)
+                    }
+                } else {
+                    Err(runtime_error(paren, "Can only call functions and classes."))
+                }
+            }
         }
     }
 }
 
-impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
-    fn visit_stmt(&mut self, statement: &Stmt) -> Result<(), RuntimeError> {
+impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
+    fn visit_stmt(&mut self, statement: &Stmt) -> Result<Option<Object>, RuntimeError> {
         match statement {
             Stmt::Expression { expression } => {
                 self.visit_expr(expression)?;
-                Ok(())
+                Ok(None)
             }
 
             Stmt::Print { expression } => {
                 let value = self.visit_expr(expression)?;
                 println!("{value}");
-                Ok(())
+                Ok(None)
             }
 
             Stmt::Var { name, initializer } => {
                 let value = self.visit_expr(initializer)?;
-                self.environment.define(name.lexeme.clone(), value);
-                Ok(())
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme.clone(), value);
+                Ok(None)
             }
 
-            Stmt::Block { statements } => {
-                self.environment.push();
-                for statement in statements.iter() {
-                    self.visit_stmt(statement)?;
-                }
-                self.environment.pop();
-                Ok(())
-            }
+            Stmt::Block { statements } => self.execute_block(
+                statements,
+                Environment::with_enclosing(self.environment.clone()),
+            ),
 
             Stmt::If {
                 condition,
@@ -182,72 +258,84 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
                 else_branch,
             } => {
                 let condition_value = self.visit_expr(condition)?;
-                if condition_value.truthy() {
-                    self.visit_stmt(then_branch)?;
+                let res = if condition_value.truthy() {
+                    self.visit_stmt(then_branch)?
                 } else if let Some(else_branch) = else_branch {
-                    self.visit_stmt(else_branch)?;
-                }
+                    self.visit_stmt(else_branch)?
+                } else {
+                    None
+                };
 
-                Ok(())
+                Ok(res)
             }
 
             Stmt::While { condition, body } => {
                 while self.visit_expr(condition)?.truthy() {
-                    self.visit_stmt(body)?;
+                    if let Some(value) = self.visit_stmt(body)? {
+                        return Ok(Some(value));
+                    }
                 }
-                Ok(())
+                Ok(None)
             }
+
+            Stmt::Function { name, .. } => {
+                let rc = self.environment.clone();
+                let function = Callable::LoxFn(Box::new(statement.clone()), rc);
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme.clone(), Object::Callable(function));
+                Ok(None)
+            }
+
+            Stmt::Return { expression, .. } => Ok(Some(self.visit_expr(expression)?)),
         }
     }
 }
 
-struct Environment {
-    scopes: Vec<HashMap<String, Object>>,
-}
-
-impl Default for Environment {
-    fn default() -> Self {
-        let global_scope = HashMap::new();
-        Self {
-            scopes: vec![global_scope],
-        }
-    }
+pub struct Environment {
+    enclosing: Option<Rc<RefCell<Environment>>>,
+    values: HashMap<String, Object>,
 }
 
 impl Environment {
-    fn define(&mut self, name: String, value: Object) {
-        if let Some(values) = self.scopes.last_mut() {
-            values.insert(name, value);
-        }
+    fn new() -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
+            enclosing: None,
+            values: HashMap::new(),
+        }))
     }
 
-    fn get(&self, name: &Token) -> Result<Object, RuntimeError> {
+    pub fn with_enclosing(enclosing: Rc<RefCell<Environment>>) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
+            enclosing: Some(enclosing),
+            values: HashMap::new(),
+        }))
+    }
+
+    pub fn define(&mut self, name: String, value: Object) {
+        self.values.insert(name, value);
+    }
+
+    pub fn get(&self, name: &Token) -> Result<Object, RuntimeError> {
         let error_msg = format!("Undefined variable '{}'.", name.lexeme);
-
-        self.scopes
-            .iter()
-            .filter_map(|values| values.get(&name.lexeme))
-            .last()
-            .ok_or(runtime_error(name, &error_msg))
-            .cloned()
-    }
-
-    fn assign(&mut self, name: &Token, value: Object) -> Result<Object, RuntimeError> {
-        self.get(name)?;
-        for values in self.scopes.iter_mut().rev() {
-            if values.contains_key(&name.lexeme) {
-                values.insert(name.lexeme.clone(), value.clone());
-            }
+        if let Some(value) = self.values.get(&name.lexeme) {
+            Ok(value.clone())
+        } else if let Some(enclosing) = &self.enclosing {
+            enclosing.borrow().get(name)
+        } else {
+            Err(runtime_error(name, &error_msg))
         }
-
-        Ok(value)
     }
 
-    fn push(&mut self) {
-        self.scopes.push(HashMap::new());
-    }
-
-    fn pop(&mut self) {
-        self.scopes.pop();
+    pub fn assign(&mut self, name: &Token, value: Object) -> Result<Object, RuntimeError> {
+        let error_msg = format!("Undefined variable '{}'.", name.lexeme);
+        if self.values.contains_key(&name.lexeme) {
+            self.values.insert(name.lexeme.clone(), value.clone());
+            Ok(value)
+        } else if let Some(enclosing) = &self.enclosing {
+            enclosing.borrow_mut().assign(name, value)
+        } else {
+            Err(runtime_error(name, &error_msg))
+        }
     }
 }

@@ -10,15 +10,16 @@ mod errors;
 mod interpreter;
 mod parser;
 mod scanner;
+mod values;
 
 fn run_file(path: &str) {
-    let mut interpreter = Interpreter::default();
+    let mut interpreter = Interpreter::new();
     let source = fs::read_to_string(path).unwrap();
     run(&mut interpreter, source).report_and_exit();
 }
 
 fn run_prompt() -> RLResult<()> {
-    let mut interpreter = Interpreter::default();
+    let mut interpreter = Interpreter::new();
     let mut rl = DefaultEditor::new().unwrap();
     loop {
         let line = rl.readline("> ")?;
@@ -36,6 +37,7 @@ fn run(interpreter: &mut Interpreter, source: String) -> Result<(), Errors> {
     }
 
     let statements = parser::parse(tokens)?;
+
     interpreter
         .interpret(&statements)
         .map_err(Errors::Runtime)?;

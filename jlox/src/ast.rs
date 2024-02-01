@@ -1,38 +1,6 @@
-use std::fmt::Display;
+use crate::{scanner::Token, values::Object};
 
-use crate::scanner::Token;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Object {
-    Number(f64),
-    Bool(bool),
-    String(String),
-    Nil,
-}
-
-impl Object {
-    pub fn truthy(&self) -> bool {
-        match self {
-            Object::Nil => false,
-            Object::Bool(value) => *value,
-            _ => true,
-        }
-    }
-}
-
-impl Display for Object {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let res = match self {
-            Object::Number(n) => n.to_string(),
-            Object::Bool(b) => b.to_string(),
-            Object::String(s) => s.clone(),
-            Object::Nil => "nil".into(),
-        };
-
-        write!(f, "{res}")
-    }
-}
-
+#[derive(Clone, PartialEq)]
 pub enum Expr {
     Assignment {
         name: Token,
@@ -42,6 +10,11 @@ pub enum Expr {
         left: Box<Expr>,
         operator: Token,
         right: Box<Expr>,
+    },
+    Call {
+        callee: Box<Expr>,
+        paren: Token,
+        arguments: Vec<Expr>,
     },
     Grouping {
         expression: Box<Expr>,
@@ -67,6 +40,7 @@ pub trait ExprVisitor<T> {
     fn visit_expr(&mut self, expression: &Expr) -> T;
 }
 
+#[derive(Clone, PartialEq)]
 pub enum Stmt {
     Block {
         statements: Vec<Stmt>,
@@ -74,12 +48,21 @@ pub enum Stmt {
     Expression {
         expression: Box<Expr>,
     },
+    Function {
+        name: Token,
+        params: Vec<Token>,
+        body: Vec<Stmt>,
+    },
     If {
         condition: Box<Expr>,
         then_branch: Box<Stmt>,
         else_branch: Option<Box<Stmt>>,
     },
     Print {
+        expression: Box<Expr>,
+    },
+    Return {
+        keyword: Token,
         expression: Box<Expr>,
     },
     Var {
