@@ -2,6 +2,7 @@ use std::{env, fs, println};
 
 use errors::{Errors, ReportErrors};
 use interpreter::Interpreter;
+use resolver::Resolver;
 use rustyline::{DefaultEditor, Result as RLResult};
 
 mod ast;
@@ -9,6 +10,7 @@ mod ast_printer;
 mod errors;
 mod interpreter;
 mod parser;
+mod resolver;
 mod scanner;
 mod values;
 
@@ -37,6 +39,11 @@ fn run(interpreter: &mut Interpreter, source: String) -> Result<(), Errors> {
     }
 
     let statements = parser::parse(tokens)?;
+
+    let mut resolver = Resolver::new(interpreter);
+    resolver
+        .resolve(&statements)
+        .map_err(|err| Errors::Parsing(vec![err]))?;
 
     interpreter
         .interpret(&statements)

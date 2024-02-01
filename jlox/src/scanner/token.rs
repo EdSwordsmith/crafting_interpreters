@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, PartialEq)]
+use std::hash;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
 pub struct Token {
     pub token_type: TokenType,
@@ -65,6 +67,13 @@ pub enum TokenType {
     While,
 
     Eof,
+}
+
+impl Eq for TokenType {}
+impl hash::Hash for TokenType {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+    }
 }
 
 pub trait Keyword {

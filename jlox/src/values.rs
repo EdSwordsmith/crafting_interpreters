@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Display, rc::Rc};
+use std::{cell::RefCell, fmt::Display, hash, rc::Rc};
 
 use crate::{
     ast::Stmt,
@@ -13,6 +13,13 @@ pub enum Object {
     String(String),
     Callable(Callable),
     Nil,
+}
+
+impl Eq for Object {}
+impl hash::Hash for Object {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+    }
 }
 
 impl Object {

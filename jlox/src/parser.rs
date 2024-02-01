@@ -26,7 +26,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Vec<Stmt>, Errors> {
     }
 }
 
-fn parser_error(token: &Token, message: &str) -> LoxError {
+pub fn parser_error(token: &Token, message: &str) -> LoxError {
     match token.token_type {
         TokenType::Eof => error_with_location(token.line, &" at end", message),
         _ => error_with_location(

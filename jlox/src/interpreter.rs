@@ -15,6 +15,7 @@ use crate::{
 pub struct Interpreter {
     pub globals: Rc<RefCell<Environment>>,
     pub environment: Rc<RefCell<Environment>>,
+    pub locals: HashMap<Expr, usize>,
 }
 
 fn runtime_error(token: &Token, message: &str) -> RuntimeError {
@@ -45,6 +46,7 @@ impl Interpreter {
         Self {
             environment: environment.clone(),
             globals: environment,
+            locals: HashMap::new(),
         }
     }
 
@@ -74,6 +76,20 @@ impl Interpreter {
 
         self.environment = previous;
         Ok(return_value)
+    }
+
+    pub fn resolve(&mut self, expr: &Expr, depth: usize) {
+        self.locals.insert(expr.clone(), depth);
+    }
+
+    fn lookup_variable(&self, name: &Token, expr: &Expr) -> Result<Object, RuntimeError> {
+        if let Some(distance) = self.locals.get(expr) {
+            self.environment
+                .borrow()
+                .get_at(*distance, name.lexeme.clone())
+        } else {
+            self.globals.borrow().get(name)
+        }
     }
 }
 
@@ -173,11 +189,18 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
                 }
             }
 
-            Expr::Variable { name } => self.environment.borrow().get(name),
+            Expr::Variable { name } => self.lookup_variable(name, expr),
 
             Expr::Assignment { name, value } => {
                 let value = self.visit_expr(value)?;
-                self.environment.borrow_mut().assign(name, value)
+
+                if let Some(distance) = self.locals.get(expr) {
+                    self.environment
+                        .borrow_mut()
+                        .assign_at(*distance, name, value)
+                } else {
+                    self.globals.borrow_mut().assign(name, value)
+                }
             }
 
             Expr::Logical {
@@ -292,6 +315,7 @@ impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
     }
 }
 
+#[derive(Clone)]
 pub struct Environment {
     enclosing: Option<Rc<RefCell<Environment>>>,
     values: HashMap<String, Object>,
@@ -336,6 +360,41 @@ impl Environment {
             enclosing.borrow_mut().assign(name, value)
         } else {
             Err(runtime_error(name, &error_msg))
+        }
+    }
+
+    fn ancestor(&self, distance: usize) -> Option<Rc<RefCell<Environment>>> {
+        let mut environment = Some(Rc::new(RefCell::new(self.clone())));
+        for _ in 0..distance {
+            if let Some(env) = environment {
+                environment = env.borrow().enclosing.clone();
+            }
+        }
+        environment
+    }
+
+    pub fn get_at(&self, distance: usize, name: String) -> Result<Object, RuntimeError> {
+        if let Some(ancestor) = self.ancestor(distance) {
+            Ok(ancestor.borrow().values.get(&name).unwrap().clone())
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub fn assign_at(
+        &self,
+        distance: usize,
+        name: &Token,
+        value: Object,
+    ) -> Result<Object, RuntimeError> {
+        if let Some(ancestor) = self.ancestor(distance) {
+            ancestor
+                .borrow_mut()
+                .values
+                .insert(name.lexeme.clone(), value.clone());
+            Ok(value)
+        } else {
+            unreachable!()
         }
     }
 }
