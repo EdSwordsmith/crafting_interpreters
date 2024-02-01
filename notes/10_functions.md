@@ -29,9 +29,9 @@ native_fn!(environment, "clock", 0, |_, _| {
 
 1. Had to go look a little bit at [Smalltalk](https://learnxinyminutes.com/docs/smalltalk/). I knew smalltalk saw methods completely as messages being passed to an object, but I wasn't fully aware of how the syntax was. From what I could gather, when passing arguments it needs to have a label before and these labels together are actually what the message or method name is. This means that if there are more arguments then it's a completely different method so there's no need for validating the number of arguments being passed.
 
-2. WIP
+2. I actually had started thinking about this, but didn't consider the case of having the expression statement since it's actually possible if used inside a grouping. I made an implementation that didn't consider this also had anonymous functions and normal functions as different variants of the `Callable` enum. I ended up reworking and making an implementation similar to what is in the book's answers so that I could have a fully working example.
 
-<!-- The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/9_break). -->
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/10_lambdas).
 
 3. Function arguments and its body are on the same scope. Right now, my current implementation allows this, as it allows shadowing or redefinition of variables on the same scope. However, I've checked and the author considers this a bug and this will most likely be dealt with afterwards.
 I'm not opposed to shadowing, but again that is most likely because of the languages I'm mostly used to, for example rust where I can shadow variables and define a new one with the same name even if it has a different type.
