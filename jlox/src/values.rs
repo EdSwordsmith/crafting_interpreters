@@ -58,7 +58,7 @@ pub enum Callable {
         usize,
         fn(&mut Interpreter, Vec<Object>) -> Result<Object, RuntimeError>,
     ),
-    LoxFn(Box<Stmt>, Rc<RefCell<Environment>>),
+    LoxFn(Box<Stmt>, Option<Rc<RefCell<Environment>>>),
 }
 
 impl PartialEq for Callable {
@@ -98,12 +98,15 @@ impl Callable {
         match self {
             Callable::NativeFn(_, _, function) => function(interpreter, arguments),
             Callable::LoxFn(fun, closure) => match *fun.clone() {
-                Stmt::Function { params, body, .. } => {
-                    let environment = Environment::with_enclosing(closure.clone());
-                    for (param, value) in params.iter().zip(arguments.iter()) {
-                        environment
-                            .borrow_mut()
-                            .define(param.lexeme.clone(), value.clone());
+                Stmt::Function { body, .. } => {
+                    let environment = if let Some(closure) = closure {
+                        Environment::with_enclosing(closure.clone())
+                    } else {
+                        Environment::new()
+                    };
+
+                    for value in arguments.iter() {
+                        environment.borrow_mut().define(value.clone());
                     }
 
                     let res = interpreter.execute_block(&body, environment)?;

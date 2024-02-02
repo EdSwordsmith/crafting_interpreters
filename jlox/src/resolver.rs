@@ -14,8 +14,13 @@ enum FunctionType {
     Function,
 }
 
+struct Variable {
+    defined: bool,
+    slot: usize,
+}
+
 pub struct Resolver<'a> {
-    scopes: Vec<HashMap<String, bool>>,
+    scopes: Vec<HashMap<String, Variable>>,
     interpreter: &'a mut Interpreter,
     current_function: FunctionType,
 }
@@ -39,7 +44,12 @@ impl<'a> Resolver<'a> {
 
     fn declare(&mut self, name: &Token) -> Result<(), LoxError> {
         if let Some(scope) = self.scopes.last_mut() {
-            if scope.insert(name.lexeme.clone(), false).is_some() {
+            let var = Variable {
+                defined: false,
+                slot: scope.len(),
+            };
+
+            if scope.insert(name.lexeme.clone(), var).is_some() {
                 return Err(parser_error(
                     name,
                     "Already a variable with this name in this scope.",
@@ -52,7 +62,9 @@ impl<'a> Resolver<'a> {
 
     fn define(&mut self, name: &Token) {
         if let Some(scope) = self.scopes.last_mut() {
-            scope.insert(name.lexeme.clone(), true);
+            if let Some(var) = scope.get_mut(&name.lexeme) {
+                var.defined = true;
+            }
         }
     }
 
@@ -65,14 +77,17 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_local(&mut self, expr: &Expr, name: &Token) {
-        let index = self
+        let scope = self
             .scopes
             .iter()
             .rev()
-            .position(|scope| scope.contains_key(&name.lexeme));
+            .enumerate()
+            .filter(|(_, scope)| scope.contains_key(&name.lexeme))
+            .next();
 
-        if let Some(index) = index {
-            self.interpreter.resolve(expr, index);
+        if let Some((index, scope)) = scope {
+            let slot = scope.get(&name.lexeme).unwrap().slot;
+            self.interpreter.resolve(expr, index, slot);
         }
     }
 
@@ -103,7 +118,12 @@ impl<'a> ExprVisitor<Result<(), LoxError>> for Resolver<'a> {
         match expression {
             Expr::Variable { name } => {
                 if let Some(scope) = self.scopes.last() {
-                    if !scope.get(&name.lexeme).unwrap_or(&true) {
+                    let defined = scope
+                        .get(&name.lexeme)
+                        .map(|var| !var.defined)
+                        .unwrap_or(false);
+
+                    if defined {
                         return Err(error(
                             name.line,
                             "Can't read local variable in its own initializer.",

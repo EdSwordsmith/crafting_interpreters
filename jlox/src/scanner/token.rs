@@ -1,6 +1,6 @@
 use std::hash;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Token {
     pub token_type: TokenType,
@@ -20,7 +20,21 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl PartialEq for Token {
+    fn eq(&self, other: &Self) -> bool {
+        self.byte == other.byte
+    }
+}
+
+impl Eq for Token {}
+
+impl hash::Hash for Token {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.byte.hash(state);
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -69,13 +83,6 @@ pub enum TokenType {
     While,
 
     Eof,
-}
-
-impl Eq for TokenType {}
-impl hash::Hash for TokenType {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
-        core::mem::discriminant(self).hash(state);
-    }
 }
 
 pub trait Keyword {

@@ -13,9 +13,10 @@ use crate::{
 };
 
 pub struct Interpreter {
-    pub globals: Rc<RefCell<Environment>>,
-    pub environment: Rc<RefCell<Environment>>,
+    pub globals: HashMap<String, Object>,
+    pub environment: Option<Rc<RefCell<Environment>>>,
     pub locals: HashMap<Expr, usize>,
+    pub slots: HashMap<Expr, usize>,
 }
 
 fn runtime_error(token: &Token, message: &str) -> RuntimeError {
@@ -27,7 +28,7 @@ fn runtime_error(token: &Token, message: &str) -> RuntimeError {
 
 macro_rules! native_fn {
     ($env:expr, $name:expr, $arity:expr, $func:expr) => {
-        $env.borrow_mut().define(
+        $env.insert(
             $name.into(),
             Object::Callable(NativeFn($name.into(), $arity, $func)),
         );
@@ -36,17 +37,18 @@ macro_rules! native_fn {
 
 impl Interpreter {
     pub fn new() -> Self {
-        let environment = Environment::new();
-        native_fn!(environment, "clock", 0, |_, _| {
+        let mut globals = HashMap::new();
+        native_fn!(globals, "clock", 0, |_, _| {
             Ok(Object::Number(
                 Utc::now().timestamp_millis() as f64 / 1000.0,
             ))
         });
 
         Self {
-            environment: environment.clone(),
-            globals: environment,
+            environment: None,
+            globals,
             locals: HashMap::new(),
+            slots: HashMap::new(),
         }
     }
 
@@ -64,7 +66,7 @@ impl Interpreter {
         environment: Rc<RefCell<Environment>>,
     ) -> Result<Option<Object>, RuntimeError> {
         let previous = self.environment.clone();
-        self.environment = environment;
+        self.environment = Some(environment);
 
         let mut return_value = None;
         for statement in statements.iter() {
@@ -78,17 +80,30 @@ impl Interpreter {
         Ok(return_value)
     }
 
-    pub fn resolve(&mut self, expr: &Expr, depth: usize) {
+    pub fn resolve(&mut self, expr: &Expr, depth: usize, slot: usize) {
         self.locals.insert(expr.clone(), depth);
+        self.slots.insert(expr.clone(), slot);
     }
 
     fn lookup_variable(&self, name: &Token, expr: &Expr) -> Result<Object, RuntimeError> {
-        if let Some(distance) = self.locals.get(expr) {
-            self.environment
-                .borrow()
-                .get_at(*distance, name.lexeme.clone())
+        let error_msg = format!("Undefined variable '{}'.", name.lexeme);
+
+        if let Some(environment) = &self.environment {
+            if let Some(distance) = self.locals.get(expr) {
+                environment
+                    .borrow()
+                    .get_at(*distance, *self.slots.get(expr).unwrap())
+            } else {
+                self.globals
+                    .get(&name.lexeme)
+                    .ok_or(runtime_error(name, &error_msg))
+                    .cloned()
+            }
         } else {
-            self.globals.borrow().get(name)
+            self.globals
+                .get(&name.lexeme)
+                .ok_or(runtime_error(name, &error_msg))
+                .cloned()
         }
     }
 }
@@ -193,13 +208,22 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
 
             Expr::Assignment { name, value } => {
                 let value = self.visit_expr(value)?;
+                let error_msg = format!("Undefined variable '{}'.", name.lexeme);
 
-                if let Some(distance) = self.locals.get(expr) {
-                    self.environment
-                        .borrow_mut()
-                        .assign_at(*distance, name, value)
+                if let Some(environment) = &self.environment {
+                    if let Some(distance) = self.locals.get(expr) {
+                        let slot = *self.slots.get(expr).unwrap();
+                        environment
+                            .borrow_mut()
+                            .assign_at(*distance, slot, value.clone())
+                    } else {
+                        Err(runtime_error(name, &error_msg))
+                    }
+                } else if let Some(global) = self.globals.get_mut(&name.lexeme) {
+                    *global = value.clone();
+                    Ok(value)
                 } else {
-                    self.globals.borrow_mut().assign(name, value)
+                    Err(runtime_error(name, &error_msg))
                 }
             }
 
@@ -264,16 +288,23 @@ impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
 
             Stmt::Var { name, initializer } => {
                 let value = self.visit_expr(initializer)?;
-                self.environment
-                    .borrow_mut()
-                    .define(name.lexeme.clone(), value);
+                if let Some(environment) = &self.environment {
+                    environment.borrow_mut().define(value);
+                } else {
+                    self.globals.insert(name.lexeme.clone(), value);
+                }
                 Ok(None)
             }
 
-            Stmt::Block { statements } => self.execute_block(
-                statements,
-                Environment::with_enclosing(self.environment.clone()),
-            ),
+            Stmt::Block { statements } => {
+                let environment = if let Some(enclosing) = &self.environment {
+                    Environment::with_enclosing(enclosing.clone())
+                } else {
+                    Environment::new()
+                };
+
+                self.execute_block(statements, environment)
+            }
 
             Stmt::If {
                 condition,
@@ -304,9 +335,13 @@ impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
             Stmt::Function { name, .. } => {
                 let rc = self.environment.clone();
                 let function = Callable::LoxFn(Box::new(statement.clone()), rc);
-                self.environment
-                    .borrow_mut()
-                    .define(name.lexeme.clone(), Object::Callable(function));
+
+                if let Some(environment) = &self.environment {
+                    environment.borrow_mut().define(Object::Callable(function));
+                } else {
+                    self.globals
+                        .insert(name.lexeme.clone(), Object::Callable(function));
+                }
                 Ok(None)
             }
 
@@ -318,49 +353,26 @@ impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
 #[derive(Clone)]
 pub struct Environment {
     enclosing: Option<Rc<RefCell<Environment>>>,
-    values: HashMap<String, Object>,
+    values: Vec<Object>,
 }
 
 impl Environment {
-    fn new() -> Rc<RefCell<Self>> {
+    pub fn new() -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             enclosing: None,
-            values: HashMap::new(),
+            values: Vec::new(),
         }))
     }
 
     pub fn with_enclosing(enclosing: Rc<RefCell<Environment>>) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             enclosing: Some(enclosing),
-            values: HashMap::new(),
+            values: Vec::new(),
         }))
     }
 
-    pub fn define(&mut self, name: String, value: Object) {
-        self.values.insert(name, value);
-    }
-
-    pub fn get(&self, name: &Token) -> Result<Object, RuntimeError> {
-        let error_msg = format!("Undefined variable '{}'.", name.lexeme);
-        if let Some(value) = self.values.get(&name.lexeme) {
-            Ok(value.clone())
-        } else if let Some(enclosing) = &self.enclosing {
-            enclosing.borrow().get(name)
-        } else {
-            Err(runtime_error(name, &error_msg))
-        }
-    }
-
-    pub fn assign(&mut self, name: &Token, value: Object) -> Result<Object, RuntimeError> {
-        let error_msg = format!("Undefined variable '{}'.", name.lexeme);
-        if self.values.contains_key(&name.lexeme) {
-            self.values.insert(name.lexeme.clone(), value.clone());
-            Ok(value)
-        } else if let Some(enclosing) = &self.enclosing {
-            enclosing.borrow_mut().assign(name, value)
-        } else {
-            Err(runtime_error(name, &error_msg))
-        }
+    pub fn define(&mut self, value: Object) {
+        self.values.push(value);
     }
 
     fn ancestor(&self, distance: usize) -> Option<Rc<RefCell<Environment>>> {
@@ -373,9 +385,9 @@ impl Environment {
         environment
     }
 
-    pub fn get_at(&self, distance: usize, name: String) -> Result<Object, RuntimeError> {
+    pub fn get_at(&self, distance: usize, slot: usize) -> Result<Object, RuntimeError> {
         if let Some(ancestor) = self.ancestor(distance) {
-            Ok(ancestor.borrow().values.get(&name).unwrap().clone())
+            Ok(ancestor.borrow().values[slot].clone())
         } else {
             unreachable!()
         }
@@ -384,14 +396,11 @@ impl Environment {
     pub fn assign_at(
         &self,
         distance: usize,
-        name: &Token,
+        slot: usize,
         value: Object,
     ) -> Result<Object, RuntimeError> {
         if let Some(ancestor) = self.ancestor(distance) {
-            ancestor
-                .borrow_mut()
-                .values
-                .insert(name.lexeme.clone(), value.clone());
+            ancestor.borrow_mut().values[slot] = value.clone();
             Ok(value)
         } else {
             unreachable!()
