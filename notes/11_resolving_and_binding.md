@@ -14,4 +14,8 @@ EDIT: After starting one of the challenges, I ran the examples to see if I had b
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/11_unused).
 
-4. WIP
+4. The idea is to store indexes related to the variables so that we look them up through those indexes instead of through their names. For that I need to have some way to map the variable itself to that index and that was where I had to do something extra. The locals hash map already maps expressions with variables to the depth of the scope it should be in, we can do something similar, but right now that hash isn't efficient to make this whole challenge efficient. Because of that, I changed it so that the hash function for a `Token` will return only that bytes field I added.
+
+After that it was only a little bit tiring, as I had to also change globals to be an hashmap as these aren't going to have a slot number and rewrite everywhere variables are interacted with to make it check if there is an environment or not.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/11_var_indexes).
