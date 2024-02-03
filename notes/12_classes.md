@@ -8,7 +8,9 @@ Made an enum for the primitives and implemented `LoxCallable` as a trait and the
 
 ## Challenges
 
-1. WIP
+1. To make a class an instance of something, all I had to do was implement the methods for getting and setting properties. There's no static init method supported, but both fields and static methods are working.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/12_static).
 
 2. Relatively easy challenge, had to parse getters as functions with no parameters and made them be invoked automatically in the get expression in the interpreter. 
 
