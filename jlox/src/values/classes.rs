@@ -4,10 +4,22 @@ use crate::{errors::RuntimeError, interpreter::Interpreter, scanner::Token};
 
 use super::{LoxCallable, LoxObj, LoxValue};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LoxClass {
     pub name: String,
     pub methods: HashMap<String, LoxObj>,
+    pub superclass: Option<Box<LoxClass>>,
+}
+
+impl LoxClass {
+    pub fn find_method(&self, name: &str) -> Option<LoxObj> {
+        let method = self.methods.get(name).cloned();
+        let super_method = self
+            .superclass
+            .clone()
+            .and_then(|class| class.find_method(name));
+        method.or(super_method)
+    }
 }
 
 impl Display for LoxClass {
@@ -20,6 +32,10 @@ impl LoxValue for LoxClass {
     fn callable(&self) -> Option<Box<dyn LoxCallable>> {
         Some(Box::new(self.clone()))
     }
+
+    fn class(&self) -> Option<LoxClass> {
+        Some(self.clone())
+    }
 }
 
 impl LoxCallable for LoxClass {
@@ -30,9 +46,7 @@ impl LoxCallable for LoxClass {
         })));
 
         let init_res = self
-            .methods
-            .get("init")
-            .map(|method| method.bind(instance.clone()))
+            .find_method("init")
             .and_then(|method| method.callable())
             .map(|method| method.call(interpreter, args));
 
@@ -72,15 +86,17 @@ impl Display for LoxInstance {
 
 impl LoxValue for LoxInstance {
     fn get_property(&self, token: &Token) -> LoxProperty {
-        self.fields
+        let field = self
+            .fields
             .get(&token.lexeme)
-            .map(|obj| LoxProperty::Field(obj.clone()))
-            .or(self
-                .class
-                .methods
-                .get(&token.lexeme)
-                .map(|method| LoxProperty::Method(method.clone())))
-            .unwrap_or(LoxProperty::Undef)
+            .map(|obj| LoxProperty::Field(obj.clone()));
+
+        let method = self
+            .class
+            .find_method(&token.lexeme)
+            .map(LoxProperty::Method);
+
+        field.or(method).unwrap_or(LoxProperty::Undef)
     }
 
     fn set_property(&mut self, name: &Token, value: &LoxObj) -> Option<LoxObj> {

@@ -13,6 +13,7 @@ use crate::{
 enum ClassType {
     None,
     Class,
+    Subclass,
 }
 
 #[derive(Clone, Copy)]
@@ -173,6 +174,23 @@ impl<'a> ExprVisitor<Result<(), LoxError>> for Resolver<'a> {
                     ))
                 }
             }
+
+            Expr::Super { keyword, .. } => {
+                if let ClassType::Subclass = self.current_class {
+                    self.resolve_local(expression, keyword);
+                    Ok(())
+                } else if let ClassType::None = self.current_class {
+                    Err(parser_error(
+                        keyword,
+                        "Can't use 'super' outside of a class.",
+                    ))
+                } else {
+                    Err(parser_error(
+                        keyword,
+                        "Can't use 'super' in a class with no superclass.",
+                    ))
+                }
+            }
         }
     }
 }
@@ -251,12 +269,40 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
                 self.visit_stmt(body)
             }
 
-            Stmt::Class { name, methods } => {
+            Stmt::Class {
+                name,
+                methods,
+                superclass,
+            } => {
                 let enclosing = self.current_class;
                 self.current_class = ClassType::Class;
 
                 self.declare(name)?;
                 self.define(name);
+
+                if let Some(superclass) = superclass {
+                    self.current_class = ClassType::Subclass;
+                    if let Expr::Variable {
+                        name: superclass_name,
+                    } = *superclass.clone()
+                    {
+                        if name.lexeme == superclass_name.lexeme {
+                            return Err(parser_error(
+                                &superclass_name,
+                                "A class can't inherit from itself.",
+                            ));
+                        }
+                    }
+
+                    self.visit_expr(superclass)?;
+                }
+
+                if superclass.is_some() {
+                    self.begin_scope();
+                    if let Some(scope) = self.scopes.last_mut() {
+                        scope.insert("super".into(), true);
+                    }
+                }
 
                 self.begin_scope();
                 if let Some(scope) = self.scopes.last_mut() {
@@ -278,6 +324,11 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
                 }
 
                 self.end_scope();
+
+                if superclass.is_some() {
+                    self.end_scope();
+                }
+
                 self.current_class = enclosing;
 
                 Ok(())

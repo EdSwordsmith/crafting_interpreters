@@ -1,6 +1,6 @@
 use crate::{scanner::Token, values::LoxObj};
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Expr {
     Assignment {
         name: Token,
@@ -36,6 +36,10 @@ pub enum Expr {
         name: Token,
         value: Box<Expr>,
     },
+    Super {
+        keyword: Token,
+        method: Token,
+    },
     This {
         keyword: Token,
     },
@@ -60,6 +64,7 @@ pub enum Stmt {
     Class {
         name: Token,
         methods: Vec<Stmt>,
+        superclass: Option<Box<Expr>>,
     },
     Expression {
         expression: Box<Expr>,

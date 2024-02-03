@@ -222,6 +222,32 @@ impl ExprVisitor<Result<LoxObj, RuntimeError>> for Interpreter {
             }
 
             Expr::This { keyword } => self.lookup_variable(keyword, expr),
+
+            Expr::Super { keyword, method } => {
+                let distance = self
+                    .locals
+                    .get(expr)
+                    .ok_or(runtime_error(keyword, "Super not defined here."))?;
+                let superclass = self
+                    .environment
+                    .borrow()
+                    .get_at(*distance, "super".into())?;
+                let object = self
+                    .environment
+                    .borrow()
+                    .get_at(*distance - 1, "this".into())?;
+
+                let method = superclass
+                    .class()
+                    .unwrap()
+                    .find_method(&method.lexeme)
+                    .ok_or(runtime_error(
+                        method,
+                        &format!("Undefined property '{}'.", method.lexeme),
+                    ))?
+                    .bind(object);
+                Ok(method)
+            }
         }
     }
 }
@@ -290,10 +316,39 @@ impl StmtVisitor<Result<Option<LoxObj>, RuntimeError>> for Interpreter {
 
             Stmt::Return { expression, .. } => Ok(Some(self.visit_expr(expression)?)),
 
-            Stmt::Class { name, methods } => {
+            Stmt::Class {
+                name,
+                methods,
+                superclass,
+            } => {
                 self.environment
                     .borrow_mut()
                     .define(name.lexeme.clone(), nil());
+                let mut enclosing_env = None;
+
+                let superclass = if let Some(superclass) = superclass.clone() {
+                    let name = if let Expr::Variable { name } = *superclass.clone() {
+                        name
+                    } else {
+                        unreachable!()
+                    };
+
+                    let class = self.visit_expr(&superclass)?;
+                    let enclosing = self.environment.clone();
+                    self.environment = Environment::with_enclosing(enclosing.clone());
+                    enclosing_env = Some(enclosing);
+                    self.environment
+                        .borrow_mut()
+                        .define("super".into(), class.clone());
+
+                    if let Some(class) = class.class() {
+                        Some(Box::new(class))
+                    } else {
+                        return Err(runtime_error(&name, "Superclass must be a class."));
+                    }
+                } else {
+                    None
+                };
 
                 let mut class_methods = HashMap::new();
                 for method in methods.iter() {
@@ -306,7 +361,12 @@ impl StmtVisitor<Result<Option<LoxObj>, RuntimeError>> for Interpreter {
                         class_methods.insert(name.lexeme.clone(), method);
                     }
                 }
-                let class = lox_class(name.lexeme.clone(), class_methods);
+
+                let class = lox_class(name.lexeme.clone(), class_methods, superclass);
+
+                if let Some(enclosing) = enclosing_env {
+                    self.environment = enclosing.clone();
+                }
 
                 self.environment.borrow_mut().assign(name, class)?;
                 Ok(None)

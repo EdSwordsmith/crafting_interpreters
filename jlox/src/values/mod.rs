@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     collections::HashMap,
-    fmt::Display,
+    fmt::{Debug, Display},
     hash::{self, Hash},
     ops::{Add, Div, Mul, Neg, Sub},
     rc::Rc,
@@ -32,6 +32,10 @@ pub trait LoxValue: Display {
     }
 
     fn callable(&self) -> Option<Box<dyn LoxCallable>> {
+        None
+    }
+
+    fn class(&self) -> Option<LoxClass> {
         None
     }
 
@@ -75,6 +79,10 @@ impl LoxObj {
     pub fn bind(&self, this: LoxObj) -> LoxObj {
         self.0.borrow().bind(this)
     }
+
+    pub fn class(&self) -> Option<LoxClass> {
+        self.0.borrow().class()
+    }
 }
 
 impl Display for LoxObj {
@@ -86,6 +94,12 @@ impl Display for LoxObj {
 impl Hash for LoxObj {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
         self.0.as_ptr().hash(state);
+    }
+}
+
+impl Debug for LoxObj {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "obj")
     }
 }
 
@@ -190,6 +204,14 @@ pub fn lox_fn(stmt: Box<Stmt>, closure: Rc<RefCell<Environment>>, is_initializer
     LoxObj(Rc::new(RefCell::new(LoxFn(stmt, closure, is_initializer))))
 }
 
-pub fn lox_class(name: String, methods: HashMap<String, LoxObj>) -> LoxObj {
-    LoxObj(Rc::new(RefCell::new(LoxClass { name, methods })))
+pub fn lox_class(
+    name: String,
+    methods: HashMap<String, LoxObj>,
+    superclass: Option<Box<LoxClass>>,
+) -> LoxObj {
+    LoxObj(Rc::new(RefCell::new(LoxClass {
+        name,
+        methods,
+        superclass,
+    })))
 }

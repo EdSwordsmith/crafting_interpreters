@@ -151,6 +151,13 @@ impl State {
             Ok(Expr::This {
                 keyword: self.previous().clone(),
             })
+        } else if self.matches(&[TokenType::Super]) {
+            let keyword = self.previous().clone();
+            self.consume(&TokenType::Dot, "Expect '.' after 'super'.")?;
+            let method = self
+                .consume(&TokenType::Identifier, "Expect superclass method name.")?
+                .clone();
+            Ok(Expr::Super { keyword, method })
         } else {
             Err(parser_error(self.peek(), "Expect expression."))
         }
@@ -575,6 +582,16 @@ impl State {
             .map_err(|err| vec![err])?
             .clone();
 
+        let superclass = if self.matches(&[TokenType::Less]) {
+            let name = self
+                .consume(&TokenType::Identifier, "Expect superclass name.")
+                .map_err(|err| vec![err])?
+                .clone();
+            Some(Box::new(Expr::Variable { name }))
+        } else {
+            None
+        };
+
         self.consume(&TokenType::LeftBrace, "Expect '{' before class body.")
             .map_err(|error| vec![error])?;
 
@@ -586,7 +603,11 @@ impl State {
         self.consume(&TokenType::RightBrace, "Expect '}' after class body.")
             .map_err(|error| vec![error])?;
 
-        Ok(Stmt::Class { name, methods })
+        Ok(Stmt::Class {
+            name,
+            methods,
+            superclass,
+        })
     }
 
     fn declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {
