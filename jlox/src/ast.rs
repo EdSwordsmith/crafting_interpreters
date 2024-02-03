@@ -60,6 +60,7 @@ pub enum Stmt {
     Class {
         name: Token,
         methods: Vec<Stmt>,
+        class_methods: Vec<Stmt>,
     },
     Expression {
         expression: Box<Expr>,

@@ -8,6 +8,8 @@ use super::{LoxCallable, LoxObj, LoxValue};
 pub struct LoxClass {
     pub name: String,
     pub methods: HashMap<String, LoxObj>,
+    pub class_methods: HashMap<String, LoxObj>,
+    pub class_fields: HashMap<String, LoxObj>,
 }
 
 impl Display for LoxClass {
@@ -19,6 +21,22 @@ impl Display for LoxClass {
 impl LoxValue for LoxClass {
     fn callable(&self) -> Option<Box<dyn LoxCallable>> {
         Some(Box::new(self.clone()))
+    }
+
+    fn get_property(&self, token: &Token) -> LoxProperty {
+        self.class_fields
+            .get(&token.lexeme)
+            .map(|obj| LoxProperty::Field(obj.clone()))
+            .or(self
+                .class_methods
+                .get(&token.lexeme)
+                .map(|method| LoxProperty::Method(method.clone())))
+            .unwrap_or(LoxProperty::Undef)
+    }
+
+    fn set_property(&mut self, name: &Token, value: &LoxObj) -> Option<LoxObj> {
+        self.class_fields.insert(name.lexeme.clone(), value.clone());
+        Some(value.clone())
     }
 }
 

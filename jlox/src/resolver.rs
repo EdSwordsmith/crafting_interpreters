@@ -251,7 +251,11 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
                 self.visit_stmt(body)
             }
 
-            Stmt::Class { name, methods } => {
+            Stmt::Class {
+                name,
+                methods,
+                class_methods,
+            } => {
                 let enclosing = self.current_class;
                 self.current_class = ClassType::Class;
 
@@ -264,6 +268,20 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
                 }
 
                 for method in methods.iter() {
+                    let declaration = if let Stmt::Function { name, .. } = method {
+                        if name.lexeme == "init" {
+                            FunctionType::Initializer
+                        } else {
+                            FunctionType::Method
+                        }
+                    } else {
+                        unreachable!()
+                    };
+
+                    self.resolve_function(method, declaration)?;
+                }
+
+                for method in class_methods.iter() {
                     let declaration = if let Stmt::Function { name, .. } = method {
                         if name.lexeme == "init" {
                             FunctionType::Initializer

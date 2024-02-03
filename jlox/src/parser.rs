@@ -579,14 +579,23 @@ impl State {
             .map_err(|error| vec![error])?;
 
         let mut methods = Vec::new();
+        let mut class_methods = Vec::new();
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
-            methods.push(self.function("method")?);
+            if self.matches(&[TokenType::Class]) {
+                class_methods.push(self.function("method")?);
+            } else {
+                methods.push(self.function("method")?);
+            }
         }
 
         self.consume(&TokenType::RightBrace, "Expect '}' after class body.")
             .map_err(|error| vec![error])?;
 
-        Ok(Stmt::Class { name, methods })
+        Ok(Stmt::Class {
+            name,
+            methods,
+            class_methods,
+        })
     }
 
     fn declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {

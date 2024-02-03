@@ -290,12 +290,16 @@ impl StmtVisitor<Result<Option<LoxObj>, RuntimeError>> for Interpreter {
 
             Stmt::Return { expression, .. } => Ok(Some(self.visit_expr(expression)?)),
 
-            Stmt::Class { name, methods } => {
+            Stmt::Class {
+                name,
+                methods,
+                class_methods,
+            } => {
                 self.environment
                     .borrow_mut()
                     .define(name.lexeme.clone(), nil());
 
-                let mut class_methods = HashMap::new();
+                let mut methods_fn = HashMap::new();
                 for method in methods.iter() {
                     if let Stmt::Function { name, .. } = method {
                         let method = lox_fn(
@@ -303,10 +307,20 @@ impl StmtVisitor<Result<Option<LoxObj>, RuntimeError>> for Interpreter {
                             self.environment.clone(),
                             name.lexeme == "init",
                         );
-                        class_methods.insert(name.lexeme.clone(), method);
+                        methods_fn.insert(name.lexeme.clone(), method);
                     }
                 }
-                let class = lox_class(name.lexeme.clone(), class_methods);
+
+                let mut class_methods_fn = HashMap::new();
+                for method in class_methods.iter() {
+                    if let Stmt::Function { name, .. } = method {
+                        let method =
+                            lox_fn(Box::new(method.clone()), self.environment.clone(), false);
+                        class_methods_fn.insert(name.lexeme.clone(), method);
+                    }
+                }
+
+                let class = lox_class(name.lexeme.clone(), methods_fn, class_methods_fn.clone());
 
                 self.environment.borrow_mut().assign(name, class)?;
                 Ok(None)
