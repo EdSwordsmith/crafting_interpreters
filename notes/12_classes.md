@@ -10,7 +10,9 @@ Made an enum for the primitives and implemented `LoxCallable` as a trait and the
 
 1. WIP
 
-2. WIP
+2. Relatively easy challenge, had to parse getters as functions with no parameters and made them be invoked automatically in the get expression in the interpreter. 
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/12_getters).
 
 3. Allowing to freely access the fields gives a lot of freedom to the programmer. However, it makes the code depend more on internal structure of the class. It also makes it impossible to have the class perform some operations every time some state is changed, which is only possible if we limit access to that state to getters and setters. Choosing between these seem to be a choice between giving more freedom to those who will use the classes or making life a little bit easier for who programs the classes, since they will know how the class is used and won't have to take into account state being changed without using methods.
 
