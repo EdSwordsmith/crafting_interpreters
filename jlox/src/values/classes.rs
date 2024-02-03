@@ -8,6 +8,7 @@ use super::{LoxCallable, LoxObj, LoxValue};
 pub struct LoxClass {
     pub name: String,
     pub methods: HashMap<String, LoxObj>,
+    pub getters: HashMap<String, LoxObj>,
 }
 
 impl Display for LoxClass {
@@ -61,6 +62,7 @@ pub enum LoxProperty {
     Invalid,
     Undef,
     Field(LoxObj),
+    Getter(LoxObj),
     Method(LoxObj),
 }
 
@@ -80,6 +82,11 @@ impl LoxValue for LoxInstance {
                 .methods
                 .get(&token.lexeme)
                 .map(|method| LoxProperty::Method(method.clone())))
+            .or(self
+                .class
+                .getters
+                .get(&token.lexeme)
+                .map(|getter| LoxProperty::Getter(getter.clone())))
             .unwrap_or(LoxProperty::Undef)
     }
 

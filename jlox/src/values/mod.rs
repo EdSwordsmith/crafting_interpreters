@@ -190,6 +190,14 @@ pub fn lox_fn(stmt: Box<Stmt>, closure: Rc<RefCell<Environment>>, is_initializer
     LoxObj(Rc::new(RefCell::new(LoxFn(stmt, closure, is_initializer))))
 }
 
-pub fn lox_class(name: String, methods: HashMap<String, LoxObj>) -> LoxObj {
-    LoxObj(Rc::new(RefCell::new(LoxClass { name, methods })))
+pub fn lox_class(
+    name: String,
+    methods: HashMap<String, LoxObj>,
+    getters: HashMap<String, LoxObj>,
+) -> LoxObj {
+    LoxObj(Rc::new(RefCell::new(LoxClass {
+        name,
+        methods,
+        getters,
+    })))
 }

@@ -205,6 +205,10 @@ impl ExprVisitor<Result<LoxObj, RuntimeError>> for Interpreter {
 
                     LoxProperty::Field(obj) => Ok(obj),
 
+                    LoxProperty::Getter(obj) => {
+                        obj.bind(object).callable().unwrap().call(self, &[])
+                    }
+
                     LoxProperty::Method(obj) => Ok(obj.bind(object)),
                 }
             }
@@ -290,7 +294,11 @@ impl StmtVisitor<Result<Option<LoxObj>, RuntimeError>> for Interpreter {
 
             Stmt::Return { expression, .. } => Ok(Some(self.visit_expr(expression)?)),
 
-            Stmt::Class { name, methods } => {
+            Stmt::Class {
+                name,
+                methods,
+                getters,
+            } => {
                 self.environment
                     .borrow_mut()
                     .define(name.lexeme.clone(), nil());
@@ -306,7 +314,17 @@ impl StmtVisitor<Result<Option<LoxObj>, RuntimeError>> for Interpreter {
                         class_methods.insert(name.lexeme.clone(), method);
                     }
                 }
-                let class = lox_class(name.lexeme.clone(), class_methods);
+
+                let mut class_getters = HashMap::new();
+                for getter in getters.iter() {
+                    if let Stmt::Function { name, .. } = getter {
+                        let getter =
+                            lox_fn(Box::new(getter.clone()), self.environment.clone(), false);
+                        class_getters.insert(name.lexeme.clone(), getter);
+                    }
+                }
+
+                let class = lox_class(name.lexeme.clone(), class_methods, class_getters);
 
                 self.environment.borrow_mut().assign(name, class)?;
                 Ok(None)

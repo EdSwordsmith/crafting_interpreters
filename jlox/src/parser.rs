@@ -59,6 +59,10 @@ impl State {
         &self.tokens[self.current - 1]
     }
 
+    fn next(&self) -> &Token {
+        &self.tokens[self.current + 1]
+    }
+
     fn check(&self, token_type: &TokenType) -> bool {
         if self.is_at_end() {
             return false;
@@ -569,6 +573,23 @@ impl State {
         Ok(Stmt::Function { name, params, body })
     }
 
+    fn getter(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        let name = self
+            .consume(&TokenType::Identifier, "Expect getter, name.")
+            .map_err(|err| vec![err])?
+            .clone();
+
+        self.consume(&TokenType::LeftBrace, "Expect '{{' before getter body.")
+            .map_err(|error| vec![error])?;
+        let body = self.block()?;
+
+        Ok(Stmt::Function {
+            name,
+            params: vec![],
+            body,
+        })
+    }
+
     fn class_declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {
         let name = self
             .consume(&TokenType::Identifier, "Expect class name.")
@@ -579,14 +600,23 @@ impl State {
             .map_err(|error| vec![error])?;
 
         let mut methods = Vec::new();
+        let mut getters = Vec::new();
         while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
-            methods.push(self.function("method")?);
+            if let TokenType::LeftBrace = self.next().token_type {
+                getters.push(self.getter()?)
+            } else {
+                methods.push(self.function("method")?);
+            }
         }
 
         self.consume(&TokenType::RightBrace, "Expect '}' after class body.")
             .map_err(|error| vec![error])?;
 
-        Ok(Stmt::Class { name, methods })
+        Ok(Stmt::Class {
+            name,
+            methods,
+            getters,
+        })
     }
 
     fn declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {

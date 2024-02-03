@@ -251,7 +251,11 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
                 self.visit_stmt(body)
             }
 
-            Stmt::Class { name, methods } => {
+            Stmt::Class {
+                name,
+                methods,
+                getters,
+            } => {
                 let enclosing = self.current_class;
                 self.current_class = ClassType::Class;
 
@@ -275,6 +279,11 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
                     };
 
                     self.resolve_function(method, declaration)?;
+                }
+
+                for getter in getters.iter() {
+                    // This is a lie :D
+                    self.resolve_function(getter, FunctionType::Method)?;
                 }
 
                 self.end_scope();
