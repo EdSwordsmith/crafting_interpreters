@@ -20,3 +20,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [Control Flow](notes/09_control_flow.md)
 - [Functions](notes/10_functions.md)
 - [Resolving and Binding](notes/11_resolving_and_binding.md)
+- [Classes](notes/12_classes.md)

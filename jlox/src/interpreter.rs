@@ -6,10 +6,7 @@ use crate::{
     ast::{Expr, ExprVisitor, Stmt, StmtVisitor},
     errors::RuntimeError,
     scanner::{Token, TokenType},
-    values::{
-        Callable::{self, NativeFn},
-        Object,
-    },
+    values::{boolean, lox_class, lox_fn, native_fn, nil, number, LoxObj, LoxProperty},
 };
 
 pub struct Interpreter {
@@ -18,30 +15,22 @@ pub struct Interpreter {
     pub locals: HashMap<Expr, usize>,
 }
 
-fn runtime_error(token: &Token, message: &str) -> RuntimeError {
+pub fn runtime_error(token: &Token, message: &str) -> RuntimeError {
     RuntimeError {
         line: token.line,
         message: message.to_string(),
     }
 }
 
-macro_rules! native_fn {
-    ($env:expr, $name:expr, $arity:expr, $func:expr) => {
-        $env.borrow_mut().define(
-            $name.into(),
-            Object::Callable(NativeFn($name.into(), $arity, $func)),
-        );
-    };
-}
-
 impl Interpreter {
     pub fn new() -> Self {
         let environment = Environment::new();
-        native_fn!(environment, "clock", 0, |_, _| {
-            Ok(Object::Number(
-                Utc::now().timestamp_millis() as f64 / 1000.0,
-            ))
-        });
+        environment.borrow_mut().define(
+            "clock".into(),
+            native_fn(0, |_, _| {
+                Ok(number(Utc::now().timestamp_millis() as f64 / 1000.0))
+            }),
+        );
 
         Self {
             environment: environment.clone(),
@@ -62,7 +51,7 @@ impl Interpreter {
         &mut self,
         statements: &[Stmt],
         environment: Rc<RefCell<Environment>>,
-    ) -> Result<Option<Object>, RuntimeError> {
+    ) -> Result<Option<LoxObj>, RuntimeError> {
         let previous = self.environment.clone();
         self.environment = environment;
 
@@ -82,7 +71,7 @@ impl Interpreter {
         self.locals.insert(expr.clone(), depth);
     }
 
-    fn lookup_variable(&self, name: &Token, expr: &Expr) -> Result<Object, RuntimeError> {
+    fn lookup_variable(&self, name: &Token, expr: &Expr) -> Result<LoxObj, RuntimeError> {
         if let Some(distance) = self.locals.get(expr) {
             self.environment
                 .borrow()
@@ -93,21 +82,19 @@ impl Interpreter {
     }
 }
 
-impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
-    fn visit_expr(&mut self, expr: &Expr) -> Result<Object, RuntimeError> {
+impl ExprVisitor<Result<LoxObj, RuntimeError>> for Interpreter {
+    fn visit_expr(&mut self, expr: &Expr) -> Result<LoxObj, RuntimeError> {
         match expr {
             Expr::Literal { value } => Ok(value.clone()),
             Expr::Grouping { expression } => self.visit_expr(expression),
 
             Expr::Unary { operator, right } => {
                 let result = self.visit_expr(right)?;
+                let neg_err = runtime_error(operator, "Operand must be a number.");
 
-                match (&operator.token_type, result) {
-                    (TokenType::Minus, Object::Number(value)) => Ok(Object::Number(-value)),
-                    (TokenType::Minus, _) => {
-                        Err(runtime_error(operator, "Operand must be a number."))
-                    }
-                    (TokenType::Bang, result) => Ok(Object::Bool(!result.truthy())),
+                match operator.token_type {
+                    TokenType::Minus => (-result).ok_or(neg_err),
+                    TokenType::Bang => Ok(boolean(!result.0.borrow().is_truthy())),
                     _ => unreachable!(),
                 }
             }
@@ -119,71 +106,29 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
             } => {
                 let left = self.visit_expr(left)?;
                 let right = self.visit_expr(right)?;
+                let ord = left.partial_cmp(&right);
 
-                match (&operator.token_type, left, right) {
-                    (TokenType::Minus, Object::Number(l), Object::Number(r)) => {
-                        Ok(Object::Number(l - r))
-                    }
-                    (TokenType::Minus, _, _) => {
-                        Err(runtime_error(operator, "Operands must be numbers."))
-                    }
+                let numbers_err = runtime_error(operator, "Operands must be numbers.");
+                let sum_err =
+                    runtime_error(operator, "Operands must be two numbers or two strings.");
 
-                    (TokenType::Slash, Object::Number(l), Object::Number(r)) => {
-                        Ok(Object::Number(l / r))
-                    }
-                    (TokenType::Slash, _, _) => {
-                        Err(runtime_error(operator, "Operands must be numbers."))
-                    }
+                match (&operator.token_type, ord) {
+                    (TokenType::Minus, _) => (left - right).ok_or(numbers_err),
+                    (TokenType::Slash, _) => (left / right).ok_or(numbers_err),
+                    (TokenType::Star, _) => (left * right).ok_or(numbers_err),
+                    (TokenType::Plus, _) => (left + right).ok_or(sum_err),
 
-                    (TokenType::Star, Object::Number(l), Object::Number(r)) => {
-                        Ok(Object::Number(l * r))
-                    }
-                    (TokenType::Star, _, _) => {
-                        Err(runtime_error(operator, "Operands must be numbers."))
-                    }
+                    (TokenType::Greater, None)
+                    | (TokenType::GreaterEqual, None)
+                    | (TokenType::Less, None)
+                    | (TokenType::LessEqual, None) => Err(numbers_err),
 
-                    (TokenType::Plus, Object::Number(l), Object::Number(r)) => {
-                        Ok(Object::Number(l + r))
-                    }
-                    (TokenType::Plus, Object::String(l), Object::String(r)) => {
-                        Ok(Object::String(l + r.as_str()))
-                    }
-                    (TokenType::Plus, _, _) => Err(runtime_error(
-                        operator,
-                        "Operands must be two numbers or two strings.",
-                    )),
-
-                    (TokenType::Greater, Object::Number(l), Object::Number(r)) => {
-                        Ok(Object::Bool(l > r))
-                    }
-                    (TokenType::Greater, _, _) => {
-                        Err(runtime_error(operator, "Operands must be numbers."))
-                    }
-
-                    (TokenType::GreaterEqual, Object::Number(l), Object::Number(r)) => {
-                        Ok(Object::Bool(l >= r))
-                    }
-                    (TokenType::GreaterEqual, _, _) => {
-                        Err(runtime_error(operator, "Operands must be numbers."))
-                    }
-
-                    (TokenType::Less, Object::Number(l), Object::Number(r)) => {
-                        Ok(Object::Bool(l < r))
-                    }
-                    (TokenType::Less, _, _) => {
-                        Err(runtime_error(operator, "Operands must be numbers."))
-                    }
-
-                    (TokenType::LessEqual, Object::Number(l), Object::Number(r)) => {
-                        Ok(Object::Bool(l <= r))
-                    }
-                    (TokenType::LessEqual, _, _) => {
-                        Err(runtime_error(operator, "Operands must be numbers."))
-                    }
-
-                    (TokenType::BangEqual, l, r) => Ok(Object::Bool(l != r)),
-
-                    (TokenType::EqualEqual, l, r) => Ok(Object::Bool(l == r)),
+                    (TokenType::Greater, _) => Ok(boolean(left > right)),
+                    (TokenType::GreaterEqual, _) => Ok(boolean(left >= right)),
+                    (TokenType::Less, _) => Ok(boolean(left < right)),
+                    (TokenType::LessEqual, _) => Ok(boolean(left <= right)),
+                    (TokenType::BangEqual, _) => Ok(left.is_diff(&right)),
+                    (TokenType::EqualEqual, _) => Ok(left.is_equal(&right)),
 
                     _ => unreachable!(),
                 }
@@ -210,8 +155,8 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
             } => {
                 let left = self.visit_expr(left)?;
                 match (&operator.token_type, left) {
-                    (TokenType::Or, left) if left.truthy() => Ok(left),
-                    (TokenType::And, left) if !left.truthy() => Ok(left),
+                    (TokenType::Or, left) if left.0.borrow().is_truthy() => Ok(left),
+                    (TokenType::And, left) if !left.0.borrow().is_truthy() => Ok(left),
                     _ => self.visit_expr(right),
                 }
             }
@@ -227,7 +172,7 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
                     args.push(self.visit_expr(argument)?);
                 }
 
-                if let Object::Callable(callee) = callee {
+                if let Some(callee) = callee.callable() {
                     if callee.arity() != args.len() {
                         Err(runtime_error(
                             paren,
@@ -238,18 +183,51 @@ impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
                             ),
                         ))
                     } else {
-                        callee.call(self, args)
+                        callee.call(self, &args)
                     }
                 } else {
                     Err(runtime_error(paren, "Can only call functions and classes."))
                 }
             }
+
+            Expr::Get { object, name } => {
+                let object = self.visit_expr(object)?;
+                let res = object.0.borrow().get_property(name);
+                match res {
+                    LoxProperty::Invalid => {
+                        Err(runtime_error(name, "Only instances have properties."))
+                    }
+
+                    LoxProperty::Undef => Err(runtime_error(
+                        name,
+                        &format!("Undefined property '{}'.", name.lexeme),
+                    )),
+
+                    LoxProperty::Field(obj) => Ok(obj),
+
+                    LoxProperty::Method(obj) => Ok(obj.bind(object)),
+                }
+            }
+
+            Expr::Set {
+                object,
+                name,
+                value,
+            } => {
+                let mut object = self.visit_expr(object)?;
+                let value = self.visit_expr(value)?;
+                object
+                    .set_property(name, &value)
+                    .ok_or(runtime_error(name, "Only instances have fields."))
+            }
+
+            Expr::This { keyword } => self.lookup_variable(keyword, expr),
         }
     }
 }
 
-impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
-    fn visit_stmt(&mut self, statement: &Stmt) -> Result<Option<Object>, RuntimeError> {
+impl StmtVisitor<Result<Option<LoxObj>, RuntimeError>> for Interpreter {
+    fn visit_stmt(&mut self, statement: &Stmt) -> Result<Option<LoxObj>, RuntimeError> {
         match statement {
             Stmt::Expression { expression } => {
                 self.visit_expr(expression)?;
@@ -281,7 +259,7 @@ impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
                 else_branch,
             } => {
                 let condition_value = self.visit_expr(condition)?;
-                let res = if condition_value.truthy() {
+                let res = if condition_value.0.borrow().is_truthy() {
                     self.visit_stmt(then_branch)?
                 } else if let Some(else_branch) = else_branch {
                     self.visit_stmt(else_branch)?
@@ -293,7 +271,7 @@ impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
             }
 
             Stmt::While { condition, body } => {
-                while self.visit_expr(condition)?.truthy() {
+                while self.visit_expr(condition)?.0.borrow().is_truthy() {
                     if let Some(value) = self.visit_stmt(body)? {
                         return Ok(Some(value));
                     }
@@ -303,14 +281,36 @@ impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
 
             Stmt::Function { name, .. } => {
                 let rc = self.environment.clone();
-                let function = Callable::LoxFn(Box::new(statement.clone()), rc);
+                let function = lox_fn(Box::new(statement.clone()), rc, false);
                 self.environment
                     .borrow_mut()
-                    .define(name.lexeme.clone(), Object::Callable(function));
+                    .define(name.lexeme.clone(), function);
                 Ok(None)
             }
 
             Stmt::Return { expression, .. } => Ok(Some(self.visit_expr(expression)?)),
+
+            Stmt::Class { name, methods } => {
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme.clone(), nil());
+
+                let mut class_methods = HashMap::new();
+                for method in methods.iter() {
+                    if let Stmt::Function { name, .. } = method {
+                        let method = lox_fn(
+                            Box::new(method.clone()),
+                            self.environment.clone(),
+                            name.lexeme == "init",
+                        );
+                        class_methods.insert(name.lexeme.clone(), method);
+                    }
+                }
+                let class = lox_class(name.lexeme.clone(), class_methods);
+
+                self.environment.borrow_mut().assign(name, class)?;
+                Ok(None)
+            }
         }
     }
 }
@@ -318,7 +318,7 @@ impl StmtVisitor<Result<Option<Object>, RuntimeError>> for Interpreter {
 #[derive(Clone)]
 pub struct Environment {
     enclosing: Option<Rc<RefCell<Environment>>>,
-    values: HashMap<String, Object>,
+    values: HashMap<String, LoxObj>,
 }
 
 impl Environment {
@@ -336,11 +336,11 @@ impl Environment {
         }))
     }
 
-    pub fn define(&mut self, name: String, value: Object) {
+    pub fn define(&mut self, name: String, value: LoxObj) {
         self.values.insert(name, value);
     }
 
-    pub fn get(&self, name: &Token) -> Result<Object, RuntimeError> {
+    pub fn get(&self, name: &Token) -> Result<LoxObj, RuntimeError> {
         let error_msg = format!("Undefined variable '{}'.", name.lexeme);
         if let Some(value) = self.values.get(&name.lexeme) {
             Ok(value.clone())
@@ -351,7 +351,7 @@ impl Environment {
         }
     }
 
-    pub fn assign(&mut self, name: &Token, value: Object) -> Result<Object, RuntimeError> {
+    pub fn assign(&mut self, name: &Token, value: LoxObj) -> Result<LoxObj, RuntimeError> {
         let error_msg = format!("Undefined variable '{}'.", name.lexeme);
         if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme.clone(), value.clone());
@@ -373,7 +373,7 @@ impl Environment {
         environment
     }
 
-    pub fn get_at(&self, distance: usize, name: String) -> Result<Object, RuntimeError> {
+    pub fn get_at(&self, distance: usize, name: String) -> Result<LoxObj, RuntimeError> {
         if let Some(ancestor) = self.ancestor(distance) {
             Ok(ancestor.borrow().values.get(&name).unwrap().clone())
         } else {
@@ -385,8 +385,8 @@ impl Environment {
         &self,
         distance: usize,
         name: &Token,
-        value: Object,
-    ) -> Result<Object, RuntimeError> {
+        value: LoxObj,
+    ) -> Result<LoxObj, RuntimeError> {
         if let Some(ancestor) = self.ancestor(distance) {
             ancestor
                 .borrow_mut()

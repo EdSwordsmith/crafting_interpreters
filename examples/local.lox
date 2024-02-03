@@ -1,0 +1,67 @@
+fun create_dog() {
+    class Dog {
+        bark() {
+            print "woof";
+        }
+    }
+
+    return Dog();
+}
+
+create_dog().bark();
+
+class Cat {
+    // class Mouth {
+    //    meow() {
+    //        print "meow";
+    //    }
+    // }
+
+    init() {
+        class Mouth {
+            meow() {
+                print "meow";
+            }
+        }
+
+        this.mouth = Mouth();
+    }
+
+    meow() {
+        this.mouth.meow();
+    }
+}
+
+Cat().meow();
+
+class Human {
+    init() {
+        class Mouth {
+            speak() {
+                print "Hi!";
+            }
+        }
+
+        this.mouth = Mouth();
+    }
+
+    speak() {
+        this.mouth.speak();
+    }
+}
+
+Human().speak();
+
+fun create_animal_class(default_name) {
+    class Animal {
+        init() {
+            this.name = default_name;
+        }
+    }
+
+    return Animal;
+}
+
+var animal = create_animal_class("animal");
+var a = animal();
+print a.name;

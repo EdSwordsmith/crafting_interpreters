@@ -4,7 +4,7 @@ use crate::{
     ast::{Expr, Stmt},
     errors::{error_with_location, Errors, LoxError},
     scanner::{Token, TokenType},
-    values::Object,
+    values::{boolean, nil, number, string},
 };
 
 pub fn parse(tokens: Vec<Token>) -> Result<Vec<Stmt>, Errors> {
@@ -122,18 +122,18 @@ impl State {
     fn primary(&mut self) -> Result<Expr, LoxError> {
         if self.matches(&[TokenType::False]) {
             Ok(Expr::Literal {
-                value: Object::Bool(false),
+                value: boolean(false),
             })
         } else if self.matches(&[TokenType::True]) {
             Ok(Expr::Literal {
-                value: Object::Bool(true),
+                value: boolean(true),
             })
         } else if self.matches(&[TokenType::Nil]) {
-            Ok(Expr::Literal { value: Object::Nil })
+            Ok(Expr::Literal { value: nil() })
         } else if self.matches(&[TokenType::Number(0.0), TokenType::String("".into())]) {
             let obj = match &self.previous().token_type {
-                TokenType::Number(value) => Object::Number(*value),
-                TokenType::String(value) => Object::String(value.into()),
+                TokenType::Number(value) => number(*value),
+                TokenType::String(value) => string(value.clone()),
                 _ => unreachable!(),
             };
             Ok(Expr::Literal { value: obj })
@@ -146,6 +146,10 @@ impl State {
         } else if self.matches(&[TokenType::Identifier]) {
             Ok(Expr::Variable {
                 name: self.previous().clone(),
+            })
+        } else if self.matches(&[TokenType::This]) {
+            Ok(Expr::This {
+                keyword: self.previous().clone(),
             })
         } else {
             Err(parser_error(self.peek(), "Expect expression."))
@@ -183,6 +187,14 @@ impl State {
         loop {
             if self.matches(&[TokenType::LeftParen]) {
                 expr = self.finish_call(expr)?;
+            } else if self.matches(&[TokenType::Dot]) {
+                let name = self
+                    .consume(&TokenType::Identifier, "Expect property name after '.'.")?
+                    .clone();
+                expr = Expr::Get {
+                    object: Box::new(expr),
+                    name,
+                }
             } else {
                 break;
             }
@@ -303,6 +315,12 @@ impl State {
                     name,
                     value: Box::new(value),
                 })
+            } else if let Expr::Get { object, name } = expr {
+                Ok(Expr::Set {
+                    object,
+                    name,
+                    value: Box::new(value),
+                })
             } else {
                 Err(parser_error(&equals, "Invalid assignment target."))
             }
@@ -400,7 +418,7 @@ impl State {
 
         let condition = if self.check(&TokenType::Semicolon) {
             Box::new(Expr::Literal {
-                value: Object::Bool(true),
+                value: boolean(true),
             })
         } else {
             Box::new(self.expression().map_err(|err| vec![err])?)
@@ -445,7 +463,7 @@ impl State {
     fn return_statement(&mut self) -> Result<Stmt, Vec<LoxError>> {
         let keyword = self.previous().clone();
         let value = if self.check(&TokenType::Semicolon) {
-            Expr::Literal { value: Object::Nil }
+            Expr::Literal { value: nil() }
         } else {
             self.expression().map_err(|err| vec![err])?
         };
@@ -487,7 +505,7 @@ impl State {
         let initializer = if self.matches(&[TokenType::Equal]) {
             self.expression().map_err(|error| vec![error])?
         } else {
-            Expr::Literal { value: Object::Nil }
+            Expr::Literal { value: nil() }
         };
 
         self.consume(
@@ -551,8 +569,30 @@ impl State {
         Ok(Stmt::Function { name, params, body })
     }
 
+    fn class_declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {
+        let name = self
+            .consume(&TokenType::Identifier, "Expect class name.")
+            .map_err(|err| vec![err])?
+            .clone();
+
+        self.consume(&TokenType::LeftBrace, "Expect '{' before class body.")
+            .map_err(|error| vec![error])?;
+
+        let mut methods = Vec::new();
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+            methods.push(self.function("method")?);
+        }
+
+        self.consume(&TokenType::RightBrace, "Expect '}' after class body.")
+            .map_err(|error| vec![error])?;
+
+        Ok(Stmt::Class { name, methods })
+    }
+
     fn declaration(&mut self) -> Result<Stmt, Vec<LoxError>> {
-        let res = if self.matches(&[TokenType::Fun]) {
+        let res = if self.matches(&[TokenType::Class]) {
+            self.class_declaration()
+        } else if self.matches(&[TokenType::Fun]) {
             self.function("function")
         } else if self.matches(&[TokenType::Var]) {
             self.var_declaration()

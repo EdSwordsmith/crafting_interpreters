@@ -6,18 +6,28 @@ use crate::{
     interpreter::Interpreter,
     parser::parser_error,
     scanner::Token,
+    values::LoxPrimitive,
 };
+
+#[derive(Clone, Copy)]
+enum ClassType {
+    None,
+    Class,
+}
 
 #[derive(Clone, Copy)]
 enum FunctionType {
     None,
     Function,
+    Method,
+    Initializer,
 }
 
 pub struct Resolver<'a> {
     scopes: Vec<HashMap<String, bool>>,
     interpreter: &'a mut Interpreter,
     current_function: FunctionType,
+    current_class: ClassType,
 }
 
 impl<'a> Resolver<'a> {
@@ -26,6 +36,7 @@ impl<'a> Resolver<'a> {
             scopes: Vec::new(),
             interpreter,
             current_function: FunctionType::None,
+            current_class: ClassType::None,
         }
     }
 
@@ -143,6 +154,25 @@ impl<'a> ExprVisitor<Result<(), LoxError>> for Resolver<'a> {
             } => self.visit_expr(expression),
 
             Expr::Literal { .. } => Ok(()),
+
+            Expr::Get { object, .. } => self.visit_expr(object),
+
+            Expr::Set { object, value, .. } => {
+                self.visit_expr(value)?;
+                self.visit_expr(object)
+            }
+
+            Expr::This { keyword } => {
+                if let ClassType::Class = self.current_class {
+                    self.resolve_local(expression, keyword);
+                    Ok(())
+                } else {
+                    Err(parser_error(
+                        keyword,
+                        "Can't use 'this' outside of a class.",
+                    ))
+                }
+            }
         }
     }
 }
@@ -182,6 +212,22 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
             } => {
                 if let FunctionType::None = self.current_function {
                     Err(parser_error(keyword, "Can't return from top-level code."))
+                } else if let FunctionType::Initializer = self.current_function {
+                    if let Expr::Literal { value } = *expression.clone() {
+                        if let Some(LoxPrimitive::Nil) = value.0.borrow().primitive() {
+                            Ok(())
+                        } else {
+                            Err(parser_error(
+                                keyword,
+                                "Can't return a value from an initializer.",
+                            ))
+                        }
+                    } else {
+                        Err(parser_error(
+                            keyword,
+                            "Can't return a value from an initializer.",
+                        ))
+                    }
                 } else {
                     self.visit_expr(expression)
                 }
@@ -203,6 +249,38 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
             Stmt::While { condition, body } => {
                 self.visit_expr(condition)?;
                 self.visit_stmt(body)
+            }
+
+            Stmt::Class { name, methods } => {
+                let enclosing = self.current_class;
+                self.current_class = ClassType::Class;
+
+                self.declare(name)?;
+                self.define(name);
+
+                self.begin_scope();
+                if let Some(scope) = self.scopes.last_mut() {
+                    scope.insert("this".into(), true);
+                }
+
+                for method in methods.iter() {
+                    let declaration = if let Stmt::Function { name, .. } = method {
+                        if name.lexeme == "init" {
+                            FunctionType::Initializer
+                        } else {
+                            FunctionType::Method
+                        }
+                    } else {
+                        unreachable!()
+                    };
+
+                    self.resolve_function(method, declaration)?;
+                }
+
+                self.end_scope();
+                self.current_class = enclosing;
+
+                Ok(())
             }
         }
     }
