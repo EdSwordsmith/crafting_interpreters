@@ -1,7 +1,6 @@
 use std::hash;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,

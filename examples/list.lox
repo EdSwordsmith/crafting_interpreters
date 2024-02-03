@@ -1,0 +1,71 @@
+class ListNode {
+    init(value) {
+        this.value = value;
+        this.next = nil;
+    }
+}
+
+class List {
+    init() {
+        this.first = nil;
+        this.last = nil;
+    }
+
+    insert(value) {
+        var node = ListNode(value);
+
+        if (this.first == nil) {
+            this.first = node;
+            this.last = node;
+        }
+
+        this.last.next = node;
+        this.last = node;
+    }
+
+    for_each(func) {
+        var node = this.first;
+        while (node != nil) {
+            func(node.value);
+            node = node.next;
+        }
+    }
+
+    map(func) {
+        var list = List();
+
+        fun call_and_insert(value) {
+            list.insert(func(value));
+        }
+
+        this.for_each(call_and_insert);
+        return list;
+    }
+
+    copy() {
+        fun identity(value) {
+            return value;
+        }
+
+        return this.map(identity);
+    }
+}
+
+fun print_value(value) {
+    print value;
+}
+
+var l = List();
+l.insert(1);
+l.insert(2);
+l.insert(3);
+l.insert(4);
+l.insert(5);
+l.for_each(print_value);
+
+fun double_value(value) {
+    return value * 2;
+}
+
+var l2 = l.map(double_value);
+l2.for_each(print_value);

@@ -1,6 +1,6 @@
-use crate::{scanner::Token, values::Object};
+use crate::{scanner::Token, values::LoxObj};
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     Assignment {
         name: Token,
@@ -16,16 +16,28 @@ pub enum Expr {
         paren: Token,
         arguments: Vec<Expr>,
     },
+    Get {
+        object: Box<Expr>,
+        name: Token,
+    },
     Grouping {
         expression: Box<Expr>,
     },
     Literal {
-        value: Object,
+        value: LoxObj,
     },
     Logical {
         left: Box<Expr>,
         operator: Token,
         right: Box<Expr>,
+    },
+    Set {
+        object: Box<Expr>,
+        name: Token,
+        value: Box<Expr>,
+    },
+    This {
+        keyword: Token,
     },
     Unary {
         operator: Token,
@@ -44,6 +56,10 @@ pub trait ExprVisitor<T> {
 pub enum Stmt {
     Block {
         statements: Vec<Stmt>,
+    },
+    Class {
+        name: Token,
+        methods: Vec<Stmt>,
     },
     Expression {
         expression: Box<Expr>,
