@@ -1,8 +1,8 @@
-use std::fmt::Display;
+use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use crate::{errors::RuntimeError, interpreter::Interpreter, scanner::Token};
 
-use super::{native_fn, nil, number, LoxObj, LoxProperty, LoxValue};
+use super::{native_fn, nil, number, LoxObj, LoxPrimitive, LoxProperty, LoxValue, NativeFn};
 
 pub struct LoxList(pub Vec<LoxObj>);
 
@@ -39,6 +39,15 @@ impl LoxValue for LoxList {
     fn pop(&mut self) -> Option<LoxObj> {
         self.0.pop()
     }
+
+    fn get(&self, index: usize) -> Option<LoxObj> {
+        self.0.get(index).cloned()
+    }
+
+    fn callable(&self) -> Option<Box<dyn super::LoxCallable>> {
+        let list = LoxObj(Rc::new(RefCell::new(LoxList(self.0.clone()))));
+        Some(Box::new(NativeFn(1, get, Some(list))))
+    }
 }
 
 fn push(_interpreter: &mut Interpreter, args: &[LoxObj]) -> Result<LoxObj, RuntimeError> {
@@ -53,4 +62,25 @@ fn pop(_interpreter: &mut Interpreter, args: &[LoxObj]) -> Result<LoxObj, Runtim
         line: 0,
         message: "Cannot pop from empty list".into(),
     })
+}
+
+fn get(_interpreter: &mut Interpreter, args: &[LoxObj]) -> Result<LoxObj, RuntimeError> {
+    let err = RuntimeError {
+        line: 0,
+        message: "List index has to be a number".into(),
+    };
+
+    let list = args[1].clone();
+    let index = args[0].0.borrow().primitive().ok_or(err.clone())?;
+    let index = if let LoxPrimitive::Number(v) = index {
+        v as usize
+    } else {
+        return Err(err);
+    };
+
+    let err = RuntimeError {
+        line: 0,
+        message: "List index out of range".into(),
+    };
+    list.0.clone().borrow().get(index).ok_or(err)
 }

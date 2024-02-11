@@ -64,6 +64,10 @@ pub trait LoxValue: Display {
     fn pop(&mut self) -> Option<LoxObj> {
         unimplemented!()
     }
+
+    fn get(&self, _index: usize) -> Option<LoxObj> {
+        unimplemented!()
+    }
 }
 
 #[derive(Clone)]
