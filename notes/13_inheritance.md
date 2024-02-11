@@ -19,4 +19,9 @@ The code for this challenge can be found [here](https://github.com/EdSwordsmith/
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/13_inner).
 
-3. WIP
+3. So going back to the features I thought were missing:
+> On features that I think are missing I would say the biggest one is arrays, had to make a class for having a list. Another would be anonymous functions, since function declarations aren't expressions. And functional programming functions such as map, reduce, and filter would be nice to have.
+
+Anonymous functions were implemented in a previous challenge so I went with making a list type. I haven't made the functions map, reduce or filter. I haven't made any way of getting a value at a certain index yet, but I'm considering adding these features later on. It only supports being printed out (showing all elements), pushing to the end and popping the last element. I know this is just a stack but I wanted very basic features for now.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/13_lists).
