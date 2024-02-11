@@ -24,4 +24,6 @@ The code for this challenge can be found [here](https://github.com/EdSwordsmith/
 
 Anonymous functions were implemented in a previous challenge so I went with making a list type. I haven't made the functions map, reduce or filter. I haven't made any way of getting a value at a certain index yet, but I'm considering adding these features later on. It only supports being printed out (showing all elements), pushing to the end and popping the last element. I know this is just a stack but I wanted very basic features for now.
 
+EDIT: Lists work as functions and can be called with an index to get the value at that index.
+
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/13_lists).
