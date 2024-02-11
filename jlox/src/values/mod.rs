@@ -51,7 +51,7 @@ pub trait LoxValue: Display {
         None
     }
 
-    fn bind(&self, _this: LoxObj) -> LoxObj {
+    fn bind(&self, _this: LoxObj, _inner: LoxObj) -> LoxObj {
         nil()
     }
 }
@@ -76,8 +76,8 @@ impl LoxObj {
         self.0.borrow_mut().set_property(name, value)
     }
 
-    pub fn bind(&self, this: LoxObj) -> LoxObj {
-        self.0.borrow().bind(this)
+    pub fn bind(&self, this: LoxObj, inner: LoxObj) -> LoxObj {
+        self.0.borrow().bind(this, inner)
     }
 
     pub fn class(&self) -> Option<LoxClass> {

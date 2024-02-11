@@ -174,23 +174,6 @@ impl<'a> ExprVisitor<Result<(), LoxError>> for Resolver<'a> {
                     ))
                 }
             }
-
-            Expr::Super { keyword, .. } => {
-                if let ClassType::Subclass = self.current_class {
-                    self.resolve_local(expression, keyword);
-                    Ok(())
-                } else if let ClassType::None = self.current_class {
-                    Err(parser_error(
-                        keyword,
-                        "Can't use 'super' outside of a class.",
-                    ))
-                } else {
-                    Err(parser_error(
-                        keyword,
-                        "Can't use 'super' in a class with no superclass.",
-                    ))
-                }
-            }
         }
     }
 }
@@ -300,13 +283,14 @@ impl<'a> StmtVisitor<Result<(), LoxError>> for Resolver<'a> {
                 if superclass.is_some() {
                     self.begin_scope();
                     if let Some(scope) = self.scopes.last_mut() {
-                        scope.insert("super".into(), true);
+                        // scope.insert("super".into(), true);
                     }
                 }
 
                 self.begin_scope();
                 if let Some(scope) = self.scopes.last_mut() {
                     scope.insert("this".into(), true);
+                    scope.insert("inner".into(), true);
                 }
 
                 for method in methods.iter() {

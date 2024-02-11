@@ -6,7 +6,7 @@ use crate::{
     ast::{Expr, ExprVisitor, Stmt, StmtVisitor},
     errors::RuntimeError,
     scanner::{Token, TokenType},
-    values::{boolean, lox_class, lox_fn, native_fn, nil, number, LoxObj, LoxProperty},
+    values::{boolean, lox_class, lox_fn, native_fn, nil, number, LoxObj, LoxProperty, Methods},
 };
 
 pub struct Interpreter {
@@ -222,32 +222,6 @@ impl ExprVisitor<Result<LoxObj, RuntimeError>> for Interpreter {
             }
 
             Expr::This { keyword } => self.lookup_variable(keyword, expr),
-
-            Expr::Super { keyword, method } => {
-                let distance = self
-                    .locals
-                    .get(expr)
-                    .ok_or(runtime_error(keyword, "Super not defined here."))?;
-                let superclass = self
-                    .environment
-                    .borrow()
-                    .get_at(*distance, "super".into())?;
-                let object = self
-                    .environment
-                    .borrow()
-                    .get_at(*distance - 1, "this".into())?;
-
-                let method = superclass
-                    .class()
-                    .unwrap()
-                    .find_method(&method.lexeme)
-                    .ok_or(runtime_error(
-                        method,
-                        &format!("Undefined property '{}'.", method.lexeme),
-                    ))?
-                    .bind(object);
-                Ok(method)
-            }
         }
     }
 }
@@ -337,9 +311,6 @@ impl StmtVisitor<Result<Option<LoxObj>, RuntimeError>> for Interpreter {
                     let enclosing = self.environment.clone();
                     self.environment = Environment::with_enclosing(enclosing.clone());
                     enclosing_env = Some(enclosing);
-                    self.environment
-                        .borrow_mut()
-                        .define("super".into(), class.clone());
 
                     if let Some(class) = class.class() {
                         Some(Box::new(class))

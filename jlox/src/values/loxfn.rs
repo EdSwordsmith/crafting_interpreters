@@ -2,7 +2,7 @@ use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use crate::{ast::Stmt, interpreter::Environment};
 
-use super::{lox_fn, nil, LoxCallable, LoxObj, LoxValue};
+use super::{lox_fn, native_fn, nil, LoxCallable, LoxObj, LoxValue};
 
 #[derive(Clone)]
 pub struct LoxFn(pub Box<Stmt>, pub Rc<RefCell<Environment>>, pub bool);
@@ -22,9 +22,10 @@ impl LoxValue for LoxFn {
         Some(Box::new(self.clone()))
     }
 
-    fn bind(&self, this: LoxObj) -> LoxObj {
+    fn bind(&self, this: LoxObj, inner: LoxObj) -> LoxObj {
         let closure = Environment::with_enclosing(self.1.clone());
         closure.borrow_mut().define("this".into(), this);
+        closure.borrow_mut().define("inner".into(), inner);
         lox_fn(self.0.clone(), closure, self.2)
     }
 }
@@ -61,5 +62,20 @@ impl LoxCallable for LoxFn {
         } else {
             unreachable!()
         }
+    }
+}
+
+pub trait Methods {
+    fn bind(&self, this: LoxObj) -> LoxObj;
+}
+
+impl Methods for Vec<LoxObj> {
+    fn bind(&self, this: LoxObj) -> LoxObj {
+        let mut last = None;
+        for method in self.iter().rev() {
+            let inner = last.unwrap_or(native_fn(0, |_, _| Ok(nil())));
+            last = Some(method.bind(this.clone(), inner));
+        }
+        last.unwrap()
     }
 }

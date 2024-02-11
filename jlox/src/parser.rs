@@ -151,13 +151,6 @@ impl State {
             Ok(Expr::This {
                 keyword: self.previous().clone(),
             })
-        } else if self.matches(&[TokenType::Super]) {
-            let keyword = self.previous().clone();
-            self.consume(&TokenType::Dot, "Expect '.' after 'super'.")?;
-            let method = self
-                .consume(&TokenType::Identifier, "Expect superclass method name.")?
-                .clone();
-            Ok(Expr::Super { keyword, method })
         } else {
             Err(parser_error(self.peek(), "Expect expression."))
         }

@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use crate::{errors::RuntimeError, interpreter::Interpreter, scanner::Token};
 
-use super::{LoxCallable, LoxObj, LoxValue};
+use super::{LoxCallable, LoxObj, LoxValue, Methods};
 
 #[derive(Clone, Debug)]
 pub struct LoxClass {
@@ -12,13 +12,18 @@ pub struct LoxClass {
 }
 
 impl LoxClass {
-    pub fn find_method(&self, name: &str) -> Option<LoxObj> {
-        let method = self.methods.get(name).cloned();
-        let super_method = self
+    pub fn find_method(&self, name: &str) -> Vec<LoxObj> {
+        let mut methods = self
             .superclass
             .clone()
-            .and_then(|class| class.find_method(name));
-        method.or(super_method)
+            .map(|class| class.find_method(name))
+            .unwrap_or(vec![]);
+
+        if let Some(method) = self.methods.get(name) {
+            methods.push(method.clone())
+        }
+
+        methods
     }
 }
 
@@ -45,11 +50,15 @@ impl LoxCallable for LoxClass {
             fields: HashMap::new(),
         })));
 
-        let init_res = self
-            .find_method("init")
-            .map(|method| method.bind(instance.clone()))
-            .and_then(|method| method.callable())
-            .map(|method| method.call(interpreter, args));
+        let init_methods = self.find_method("init");
+        let init_res = if init_methods.is_empty() {
+            None
+        } else {
+            let method = init_methods.bind(instance.clone());
+            method
+                .callable()
+                .map(|method| method.call(interpreter, args))
+        };
 
         if let Some(Err(err)) = init_res {
             Err(err)
@@ -76,7 +85,7 @@ pub enum LoxProperty {
     Invalid,
     Undef,
     Field(LoxObj),
-    Method(LoxObj),
+    Method(Vec<LoxObj>),
 }
 
 impl Display for LoxInstance {
@@ -92,12 +101,14 @@ impl LoxValue for LoxInstance {
             .get(&token.lexeme)
             .map(|obj| LoxProperty::Field(obj.clone()));
 
-        let method = self
-            .class
-            .find_method(&token.lexeme)
-            .map(LoxProperty::Method);
+        let methods = self.class.find_method(&token.lexeme);
+        let methods = if methods.is_empty() {
+            None
+        } else {
+            Some(LoxProperty::Method(methods))
+        };
 
-        field.or(method).unwrap_or(LoxProperty::Undef)
+        field.or(methods).unwrap_or(LoxProperty::Undef)
     }
 
     fn set_property(&mut self, name: &Token, value: &LoxObj) -> Option<LoxObj> {
