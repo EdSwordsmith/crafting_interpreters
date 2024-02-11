@@ -6,7 +6,7 @@ use crate::{
     ast::{Expr, ExprVisitor, Stmt, StmtVisitor},
     errors::RuntimeError,
     scanner::{Token, TokenType},
-    values::{boolean, lox_class, lox_fn, native_fn, nil, number, LoxObj, LoxProperty},
+    values::{boolean, lox_class, lox_fn, lox_list, native_fn, nil, number, LoxObj, LoxProperty},
 };
 
 pub struct Interpreter {
@@ -31,6 +31,10 @@ impl Interpreter {
                 Ok(number(Utc::now().timestamp_millis() as f64 / 1000.0))
             }),
         );
+
+        environment
+            .borrow_mut()
+            .define("list".into(), native_fn(0, |_, _| Ok(lox_list())));
 
         Self {
             environment: environment.clone(),

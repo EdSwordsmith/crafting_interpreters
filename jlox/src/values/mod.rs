@@ -9,12 +9,14 @@ use std::{
 
 mod callable;
 mod classes;
+mod lists;
 mod loxfn;
 mod nativefn;
 mod primitives;
 
 pub use callable::*;
 pub use classes::*;
+pub use lists::*;
 pub use loxfn::*;
 pub use nativefn::*;
 pub use primitives::*;
@@ -53,6 +55,14 @@ pub trait LoxValue: Display {
 
     fn bind(&self, _this: LoxObj) -> LoxObj {
         nil()
+    }
+
+    fn push(&mut self, _item: LoxObj) {
+        unimplemented!()
+    }
+
+    fn pop(&mut self) -> Option<LoxObj> {
+        unimplemented!()
     }
 }
 
@@ -197,7 +207,15 @@ pub fn native_fn(
     arity: usize,
     function: fn(&mut Interpreter, &[LoxObj]) -> Result<LoxObj, RuntimeError>,
 ) -> LoxObj {
-    LoxObj(Rc::new(RefCell::new(NativeFn(arity, function))))
+    LoxObj(Rc::new(RefCell::new(NativeFn(arity, function, None))))
+}
+
+pub fn native_method(
+    arity: usize,
+    function: fn(&mut Interpreter, &[LoxObj]) -> Result<LoxObj, RuntimeError>,
+    this: Option<LoxObj>,
+) -> LoxObj {
+    LoxObj(Rc::new(RefCell::new(NativeFn(arity, function, this))))
 }
 
 pub fn lox_fn(stmt: Box<Stmt>, closure: Rc<RefCell<Environment>>, is_initializer: bool) -> LoxObj {
@@ -214,4 +232,8 @@ pub fn lox_class(
         methods,
         superclass,
     })))
+}
+
+pub fn lox_list() -> LoxObj {
+    LoxObj(Rc::new(RefCell::new(LoxList(Vec::new()))))
 }
