@@ -36,6 +36,17 @@ impl LoxValue for LoxClass {
     fn class(&self) -> Option<LoxClass> {
         Some(self.clone())
     }
+
+    fn set_property(&mut self, name: &Token, value: &LoxObj) -> Option<LoxObj> {
+        // This should have validation to ensure value is a function
+        // For simplicity, I will simply allow for any callable value
+        if value.callable().is_some() {
+            self.methods.insert(name.lexeme.clone(), value.clone());
+            Some(value.clone())
+        } else {
+            None
+        }
+    }
 }
 
 impl LoxCallable for LoxClass {
