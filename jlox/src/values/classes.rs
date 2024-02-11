@@ -47,6 +47,7 @@ impl LoxCallable for LoxClass {
 
         let init_res = self
             .find_method("init")
+            .map(|method| method.bind(instance.clone()))
             .and_then(|method| method.callable())
             .map(|method| method.call(interpreter, args));
 
