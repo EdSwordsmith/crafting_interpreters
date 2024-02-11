@@ -15,5 +15,8 @@ So instead I tried to make some kind of extension methods, which came out a litt
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/13_extension).
 
-2. WIP
+2. For this I knew I would have to change the way `find_method` works to get all of the possible methods and bind the value of both this and inner in each of them. I think that park should be fine, but my implementation was left with some flaws. To make it a function that doesn't do anything, I made it so it's set to a nativefn that receives no arguments and does nothing. This means passing arguments will make it error. I'm not sure what else wasn't properly done but the example in the book is working.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/13_inner).
+
 3. WIP
