@@ -4,21 +4,26 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { nixpkgs, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let pkgs = import nixpkgs { inherit system; };
-      in {
-        devShell = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            cargo
-            rustc
-            rustfmt
-            clippy
-            # Challenges
-            gnumake
-            adoptopenjdk-bin
-            clang
-          ];
-        };
-      });
+  outputs = {
+    nixpkgs,
+    flake-utils,
+    ...
+  }:
+    flake-utils.lib.eachDefaultSystem (system: let
+      pkgs = import nixpkgs {inherit system;};
+    in {
+      devShell = pkgs.mkShell {
+        buildInputs = with pkgs; [
+          cargo
+          rustc
+          rustfmt
+          clippy
+          zig
+          # Challenges
+          gnumake
+          adoptopenjdk-bin
+          clang
+        ];
+      };
+    });
 }
