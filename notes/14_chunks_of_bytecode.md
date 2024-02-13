@@ -6,7 +6,9 @@ In this part, my struggles were mostly about inexperience in writing Zig as well
 
 ## Challenges
 
-1. WIP
+1. For this challenge I played a little before settling on this implementation. I had initially thought about storing the start offset for that line and use binary search, which is what I ended up implementing, but I decided to try something else first. I looked into the [wikipedia article of run-length encoding](https://en.wikipedia.org/wiki/Run-length_encoding) and wrote in a way where for each line I also stored how many instructions it has. However, the search wouldn't be as efficient as binary search with the other approach so I stepped back and implemented that.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/14_lines).
 
 2. WIP
 
