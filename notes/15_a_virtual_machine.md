@@ -4,7 +4,47 @@ This part was fun and I spent a little bit of time looking at Zig's allocators. 
 
 ## Challenges
 
-1. WIP
+1. 
+```
+1 * 2 + 3
+```
+CONST 1
+CONST 2
+MULTIPLY
+CONST 3 
+ADD
+
+
+```
+1 + 2 * 3
+```
+CONST 1
+CONST 2
+CONST 3
+MULTIPLY
+ADD
+
+```
+3 - 2 - 1
+```
+CONST 3
+CONST 2
+SUB
+CONST 1
+SUB
+
+```
+1 + 2 * 3 - 4 / -5
+```
+CONST 1
+CONST 2
+CONST 3
+MULTIPLY
+ADD
+CONST 4
+CONST 5
+NEGATE
+SUB
 
 2. WIP
 
