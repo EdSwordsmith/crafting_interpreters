@@ -89,11 +89,7 @@ pub const Chunk = struct {
 
     fn constantInstruction(self: *const Chunk, name: []const u8, offset: usize) usize {
         const constant = self.code.items[offset + 1];
-        const padding = 16 - name.len;
-        std.debug.print("{s}", .{name});
-        for (padding) |_| std.debug.print(" ", .{});
-        std.debug.print(" {: >4} '", .{constant});
-
+        std.debug.print("{s: <16} {: >4} ", .{ name, constant });
         printValue(self.constants.items[constant]);
         std.debug.print("'\n", .{});
         return offset + 2;
