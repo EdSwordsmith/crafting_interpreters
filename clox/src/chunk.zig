@@ -6,12 +6,14 @@ const printValue = @import("./value.zig").printValue;
 pub const OpCode = enum(u8) { Constant, Return };
 
 pub const Chunk = struct {
+    const LineData = struct { line: usize, offset: usize };
+
     code: std.ArrayList(u8),
-    lines: std.ArrayList(usize),
+    lines: std.ArrayList(LineData),
     constants: std.ArrayList(Value),
 
     pub fn init(allocator: std.mem.Allocator) Chunk {
-        return Chunk{ .code = std.ArrayList(u8).init(allocator), .lines = std.ArrayList(usize).init(allocator), .constants = std.ArrayList(Value).init(allocator) };
+        return Chunk{ .code = std.ArrayList(u8).init(allocator), .lines = std.ArrayList(LineData).init(allocator), .constants = std.ArrayList(Value).init(allocator) };
     }
 
     pub fn deinit(self: *Chunk) void {
@@ -26,7 +28,31 @@ pub const Chunk = struct {
 
     pub fn write(self: *Chunk, byte: u8, line: usize) !void {
         try self.code.append(byte);
-        try self.lines.append(line);
+
+        if (self.lines.items.len == 0 or self.lines.getLast().line != line)
+            try self.lines.append(LineData{ .line = line, .offset = self.code.items.len - 1 });
+    }
+
+    pub fn getLine(self: *const Chunk, offset: usize) usize {
+        const line_count = self.lines.items.len;
+        var high: usize = line_count - 1;
+        var low: usize = 0;
+
+        while (low < high) {
+            const index = low + high / 2;
+            const start = self.lines.items[index].offset;
+
+            if (start > offset) {
+                high = index - 1;
+            } else if (index == line_count - 1 or self.lines.items[index + 1].offset > offset) {
+                low = index;
+                break;
+            } else {
+                low = index + 1;
+            }
+        }
+
+        return self.lines.items[low].line;
     }
 
     pub fn addConstant(self: *Chunk, value: Value) !u8 {
@@ -44,10 +70,11 @@ pub const Chunk = struct {
 
     pub fn disassembleInstruction(self: *const Chunk, offset: usize) usize {
         std.debug.print("{:0>4} ", .{offset});
-        if (offset > 0 and self.lines.items[offset] == self.lines.items[offset - 1]) {
+        const line = self.getLine(offset);
+        if (offset > 0 and line == self.getLine(offset - 1)) {
             std.debug.print("   | ", .{});
         } else {
-            std.debug.print("{: >4} ", .{self.lines.items[offset]});
+            std.debug.print("{: >4} ", .{line});
         }
 
         if (self.code.items[offset] >= @typeInfo(OpCode).Enum.fields.len) {
