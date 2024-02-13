@@ -3,7 +3,7 @@ const std = @import("std");
 const Value = @import("./value.zig").Value;
 const printValue = @import("./value.zig").printValue;
 
-pub const OpCode = enum(u8) { Constant, Return };
+pub const OpCode = enum(u8) { Constant, Add, Subtract, Multiply, Divide, Negate, Return };
 
 pub const Chunk = struct {
     code: std.ArrayList(u8),
@@ -61,6 +61,26 @@ pub const Chunk = struct {
                 return self.constantInstruction("OP_CONSTANT", offset);
             },
 
+            .Add => {
+                return self.simpleInstruction("OP_ADD", offset);
+            },
+
+            .Subtract => {
+                return self.simpleInstruction("OP_SUBTRACT", offset);
+            },
+
+            .Multiply => {
+                return self.simpleInstruction("OP_MULTIPLY", offset);
+            },
+
+            .Divide => {
+                return self.simpleInstruction("OP_DIVIDE", offset);
+            },
+
+            .Negate => {
+                return self.simpleInstruction("OP_NEGATE", offset);
+            },
+
             .Return => {
                 return self.simpleInstruction("OP_RETURN", offset);
             },
@@ -68,7 +88,7 @@ pub const Chunk = struct {
     }
 
     fn constantInstruction(self: *const Chunk, name: []const u8, offset: usize) usize {
-        var constant = self.code.items[offset + 1];
+        const constant = self.code.items[offset + 1];
         const padding = 16 - name.len;
         std.debug.print("{s}", .{name});
         for (padding) |_| std.debug.print(" ", .{});
