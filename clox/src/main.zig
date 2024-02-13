@@ -9,9 +9,7 @@ pub fn main() !void {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var stack_buffer: [256]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&stack_buffer);
-    var vm = VM.init(fba.allocator());
+    var vm = VM.init(allocator);
     defer vm.deinit();
 
     var chunk = Chunk.init(allocator);
