@@ -71,6 +71,8 @@ ADD
 
 It makes sense to have these common operations execute more efficiently with just one instruction. It probably would also make sense to have instructions for incrementing, decrementing similar to machine code instructions.
 
-3. WIP
+3. This challenge was really simple with my approach as I only had to use the allocator I'm using for the array lists in the Chunk for the VM's Stack instead of the fixed buffer allocator. 
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/15_dynamic_stack).
 
 4. WIP
