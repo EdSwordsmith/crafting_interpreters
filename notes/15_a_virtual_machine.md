@@ -46,7 +46,30 @@ CONST 5
 NEGATE
 SUB
 
-2. WIP
+2.
+```
+4 - 3 * -2
+```
+
+Without OP_NEGATE:
+CONST 4
+CONST 3
+CONST 0
+CONST 2
+SUB
+MULTIPLY
+SUB
+
+Without OP_SUBTRACT:
+CONST 4
+CONST 3
+CONST 2
+NEGATE
+MULTIPLY
+NEGATE
+ADD
+
+It makes sense to have these common operations execute more efficiently with just one instruction. It probably would also make sense to have instructions for incrementing, decrementing similar to machine code instructions.
 
 3. WIP
 
