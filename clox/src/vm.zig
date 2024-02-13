@@ -52,20 +52,17 @@ pub const VM = struct {
 
                 .Add => {
                     const b = self.stack.pop();
-                    const a = self.stack.pop();
-                    try self.stack.append(a + b);
+                    self.stack.items[self.stack.items.len - 1] += b;
                 },
 
                 .Subtract => {
                     const b = self.stack.pop();
-                    const a = self.stack.pop();
-                    try self.stack.append(a - b);
+                    self.stack.items[self.stack.items.len - 1] -= b;
                 },
 
                 .Multiply => {
                     const b = self.stack.pop();
-                    const a = self.stack.pop();
-                    try self.stack.append(a * b);
+                    self.stack.items[self.stack.items.len - 1] *= b;
                 },
 
                 .Divide => {
@@ -75,7 +72,7 @@ pub const VM = struct {
                 },
 
                 .Negate => {
-                    try self.stack.append(-self.stack.pop());
+                    self.stack.items[self.stack.items.len - 1] *= -1;
                 },
 
                 .Return => {
