@@ -75,4 +75,6 @@ It makes sense to have these common operations execute more efficiently with jus
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/15_dynamic_stack).
 
-4. WIP
+4. So I tried to benchmark the performance and it was actually more or less the same on my computer. Most likely the compiler already optimizes how these operations work and it ends up doing the exact same thing. I also did an optimization similar to the binary operations (except for the division due to lazyness) where only the second argument is popped from the stack.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/15_opt).
