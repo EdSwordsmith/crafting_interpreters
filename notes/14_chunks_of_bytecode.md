@@ -10,6 +10,10 @@ In this part, my struggles were mostly about inexperience in writing Zig as well
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/14_lines).
 
-2. WIP
+2. Again, this seemed easy to implement and the struggles I encountered were more about not being that used to writing Zig. In the disassembler I wasn't getting how I can shift left to combine the bytes to form the index of the constant, so I ended up just multiplying by 256. 
+
+On the downsides of having two instructions. One is that we are using one OpCode, meaning there's one less instruction type which we can define. It may also increase the complexity of our VM, and make it slower due to how the cache works since we now have instructions that use a few more bytes than usual, but I think the most important point is not being able to have as many opcodes as we would be if we didn't have this, which most likely isn't even a big issue.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/14_constant_long).
 
 3. WIP
