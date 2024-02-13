@@ -10,10 +10,11 @@ pub fn main() !void {
     var chunk = Chunk.init(allocator);
     defer chunk.deinit();
 
-    // OP_CONSTANT 1.2
-    var constant = try chunk.addConstant(1.2);
-    try chunk.writeOp(OpCode.Constant, 123);
-    try chunk.write(constant, 123);
+    // Added this for to check if the constant long instruction was being used properly
+    for (0..258) |_| {
+        // OP_CONSTANT 1.2
+        try chunk.writeConstant(1.2, 123);
+    }
 
     // OP_RETURN
     try chunk.writeOp(OpCode.Return, 123);

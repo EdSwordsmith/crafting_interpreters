@@ -3,7 +3,7 @@ const std = @import("std");
 const Value = @import("./value.zig").Value;
 const printValue = @import("./value.zig").printValue;
 
-pub const OpCode = enum(u8) { Constant, Return };
+pub const OpCode = enum(u8) { Constant, ConstantLong, Return };
 
 pub const Chunk = struct {
     code: std.ArrayList(u8),
@@ -29,9 +29,22 @@ pub const Chunk = struct {
         try self.lines.append(line);
     }
 
-    pub fn addConstant(self: *Chunk, value: Value) !u8 {
+    pub fn addConstant(self: *Chunk, value: Value) !usize {
         try self.constants.append(value);
-        return @as(u8, @truncate(self.constants.items.len - 1));
+        return self.constants.items.len - 1;
+    }
+
+    pub fn writeConstant(self: *Chunk, value: Value, line: usize) !void {
+        const constant = try self.addConstant(value);
+        if (constant < 256) {
+            try self.writeOp(OpCode.Constant, line);
+            try self.write(@as(u8, @truncate(constant)), line);
+        } else {
+            try self.writeOp(OpCode.ConstantLong, line);
+            try self.write(@as(u8, @truncate(constant >> 16)), line);
+            try self.write(@as(u8, @truncate(constant >> 8)), line);
+            try self.write(@as(u8, @truncate(constant)), line);
+        }
     }
 
     pub fn disassemble(self: *const Chunk, name: []const u8) void {
@@ -61,6 +74,10 @@ pub const Chunk = struct {
                 return self.constantInstruction("OP_CONSTANT", offset);
             },
 
+            .ConstantLong => {
+                return self.constantLongInstruction("OP_CONSTANT_LONG", offset);
+            },
+
             .Return => {
                 return self.simpleInstruction("OP_RETURN", offset);
             },
@@ -77,6 +94,17 @@ pub const Chunk = struct {
         printValue(self.constants.items[constant]);
         std.debug.print("'\n", .{});
         return offset + 2;
+    }
+
+    fn constantLongInstruction(self: *const Chunk, name: []const u8, offset: usize) usize {
+        const constant = @as(usize, self.code.items[offset + 1]) * 256 * 256 + @as(usize, self.code.items[offset + 2]) * 256 + @as(usize, self.code.items[offset + 3]);
+        const padding = 16 - name.len;
+        std.debug.print("{s}", .{name});
+        for (padding) |_| std.debug.print(" ", .{});
+        std.debug.print(" {: >4} '", .{constant});
+        printValue(self.constants.items[constant]);
+        std.debug.print("'\n", .{});
+        return offset + 4;
     }
 
     fn simpleInstruction(self: *const Chunk, name: []const u8, offset: usize) usize {
