@@ -56,35 +56,15 @@ pub const Chunk = struct {
         }
 
         const instruction: OpCode = @enumFromInt(self.code.items[offset]);
-        switch (instruction) {
-            .Constant => {
-                return self.constantInstruction("OP_CONSTANT", offset);
-            },
-
-            .Add => {
-                return self.simpleInstruction("OP_ADD", offset);
-            },
-
-            .Subtract => {
-                return self.simpleInstruction("OP_SUBTRACT", offset);
-            },
-
-            .Multiply => {
-                return self.simpleInstruction("OP_MULTIPLY", offset);
-            },
-
-            .Divide => {
-                return self.simpleInstruction("OP_DIVIDE", offset);
-            },
-
-            .Negate => {
-                return self.simpleInstruction("OP_NEGATE", offset);
-            },
-
-            .Return => {
-                return self.simpleInstruction("OP_RETURN", offset);
-            },
-        }
+        return switch (instruction) {
+            .Constant => self.constantInstruction("OP_CONSTANT", offset),
+            .Add => self.simpleInstruction("OP_ADD", offset),
+            .Subtract => self.simpleInstruction("OP_SUBTRACT", offset),
+            .Multiply => self.simpleInstruction("OP_MULTIPLY", offset),
+            .Divide => self.simpleInstruction("OP_DIVIDE", offset),
+            .Negate => self.simpleInstruction("OP_NEGATE", offset),
+            .Return => self.simpleInstruction("OP_RETURN", offset),
+        };
     }
 
     fn constantInstruction(self: *const Chunk, name: []const u8, offset: usize) usize {

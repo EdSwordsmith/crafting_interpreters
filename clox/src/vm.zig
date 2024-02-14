@@ -4,6 +4,7 @@ const Chunk = @import("chunk.zig").Chunk;
 const OpCode = @import("chunk.zig").OpCode;
 const Value = @import("value.zig").Value;
 const printValue = @import("value.zig").printValue;
+const compiler = @import("compiler.zig");
 
 pub const Errors = error{ CompileError, RuntimeError };
 
@@ -22,10 +23,12 @@ pub const VM = struct {
         self.stack.deinit();
     }
 
-    pub fn interpret(self: *VM, chunk: *const Chunk) !void {
-        self.chunk = chunk;
-        self.ip = chunk.code.items.ptr;
-        try self.run();
+    pub fn interpret(self: *VM, source: []const u8) Errors!void {
+        _ = self;
+        compiler.compile(source);
+        // self.chunk = chunk;
+        // self.ip = chunk.code.items.ptr;
+        // try self.run();
     }
 
     pub fn run(self: *VM) !void {

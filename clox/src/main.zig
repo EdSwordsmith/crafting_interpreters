@@ -1,49 +1,93 @@
 const std = @import("std");
 
-const Chunk = @import("chunk.zig").Chunk;
-const OpCode = @import("chunk.zig").OpCode;
 const VM = @import("vm.zig").VM;
+const Value = @import("value.zig").Value;
 
-pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var stack_buffer: [256]u8 = undefined;
+pub fn main() !u8 {
+    var stack_buffer: [@sizeOf(Value) * 256]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&stack_buffer);
     var vm = VM.init(fba.allocator());
     defer vm.deinit();
 
-    var chunk = Chunk.init(allocator);
-    defer chunk.deinit();
+    const file = parseArgs() catch {
+        std.debug.print("Usage: clox [path]\n", .{});
+        return 64;
+    };
 
-    // OP_CONSTANT 1.2
-    var constant = try chunk.addConstant(1.2);
-    try chunk.writeOp(OpCode.Constant, 123);
-    try chunk.write(constant, 123);
+    if (file) |file_name| {
+        runFile(&vm, file_name) catch |err| switch (err) {
+            error.CompileError => return 65,
+            error.RuntimeError => return 70,
+            error.CouldNotOpen => {
+                std.debug.print("Could not open file \"{s}\"", .{file_name});
+                return 74;
+            },
+            error.OutOfMemory => {
+                std.debug.print("Not enough memory to read \"{s}\"", .{file_name});
+                return 74;
+            },
+            else => return err,
+        };
+    } else {
+        try repl(&vm);
+    }
 
-    // OP_CONSTANT 3.4
-    constant = try chunk.addConstant(3.4);
-    try chunk.writeOp(OpCode.Constant, 123);
-    try chunk.write(constant, 123);
+    return 0;
+}
 
-    // OP_ADD
-    try chunk.writeOp(OpCode.Add, 123);
+fn parseArgs() error{ShowUsage}!?[]const u8 {
+    var file: ?[]const u8 = null;
+    var args = std.process.args();
+    var argc: usize = 0;
 
-    // OP_CONSTANT 5.6
-    constant = try chunk.addConstant(5.6);
-    try chunk.writeOp(OpCode.Constant, 123);
-    try chunk.write(constant, 123);
+    while (args.next()) |arg| {
+        if (argc == 1) file = arg;
+        argc += 1;
+    }
 
-    // OP_DIVIDE
-    try chunk.writeOp(OpCode.Divide, 123);
+    if (argc > 2) return error.ShowUsage;
 
-    // OP_NEGATE
-    try chunk.writeOp(OpCode.Negate, 123);
+    return file;
+}
 
-    // OP_RETURN
-    try chunk.writeOp(OpCode.Return, 123);
+fn repl(vm: *VM) !void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
 
-    chunk.disassemble("test chunk");
-    try vm.interpret(&chunk);
+    const stdin = std.io.getStdIn().reader();
+    const stdout = std.io.getStdOut().writer();
+
+    while (true) {
+        try stdout.print("> ", .{});
+
+        var line = std.ArrayList(u8).init(arena.allocator());
+        defer line.deinit();
+
+        stdin.streamUntilDelimiter(line.writer(), '\n', null) catch |err| switch (err) {
+            error.EndOfStream => {
+                try stdout.print("\n", .{});
+                break;
+            },
+            else => return err,
+        };
+
+        vm.interpret(line.items) catch {};
+    }
+}
+
+fn runFile(vm: *VM, file_name: []const u8) !void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = arena.allocator();
+    defer arena.deinit();
+
+    const file = std.fs.cwd().openFile(file_name, .{}) catch {
+        return error.CouldNotOpen;
+    };
+    defer file.close();
+
+    const stat = try file.stat();
+    const buffer = try allocator.alloc(u8, stat.size);
+    _ = try file.readAll(buffer);
+
+    try vm.interpret(buffer);
 }
