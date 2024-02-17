@@ -3,7 +3,6 @@ const std = @import("std");
 const Chunk = @import("chunk.zig").Chunk;
 const OpCode = @import("chunk.zig").OpCode;
 const Value = @import("value.zig").Value;
-const printValue = @import("value.zig").printValue;
 const Compiler = @import("compiler.zig").Compiler;
 const flags = @import("flags");
 
@@ -40,7 +39,7 @@ pub const VM = struct {
                 std.debug.print("          ", .{});
                 for (self.stack.items) |value| {
                     std.debug.print("[ ", .{});
-                    printValue(value);
+                    value.print();
                     std.debug.print(" ]", .{});
                 }
                 std.debug.print("\n", .{});
@@ -56,36 +55,41 @@ pub const VM = struct {
                     try self.stack.append(constant);
                 },
 
-                .Add => {
-                    const b = self.stack.pop();
-                    const a = self.stack.pop();
-                    try self.stack.append(a + b);
-                },
+                .Nil => try self.stack.append(Value.nil()),
+                .True => try self.stack.append(Value.boolean(true)),
+                .False => try self.stack.append(Value.boolean(false)),
 
-                .Subtract => {
-                    const b = self.stack.pop();
+                .Equal => {
                     const a = self.stack.pop();
-                    try self.stack.append(a - b);
+                    const b = self.stack.pop();
+                    try self.stack.append(Value.boolean(a.equal(b)));
                 },
+                .Greater => try self.binaryOp(greater),
+                .Less => try self.binaryOp(less),
 
-                .Multiply => {
-                    const b = self.stack.pop();
-                    const a = self.stack.pop();
-                    try self.stack.append(a * b);
-                },
+                .Add => try self.binaryOp(add),
+                .Subtract => try self.binaryOp(sub),
+                .Multiply => try self.binaryOp(mul),
+                .Divide => try self.binaryOp(div),
 
-                .Divide => {
-                    const b = self.stack.pop();
-                    const a = self.stack.pop();
-                    try self.stack.append(a / b);
-                },
+                .Not => try self.stack.append(Value.boolean(self.stack.pop().isFalsey())),
 
                 .Negate => {
-                    try self.stack.append(-self.stack.pop());
+                    switch (self.peek(0)) {
+                        .number => {
+                            const value = self.stack.pop();
+                            try self.stack.append(Value.number(-value.number));
+                        },
+
+                        else => {
+                            self.runtimeError("Operand must be a number.", .{});
+                            return error.RuntimeError;
+                        },
+                    }
                 },
 
                 .Return => {
-                    printValue(self.stack.pop());
+                    self.stack.pop().print();
                     std.debug.print("\n", .{});
                     return;
                 },
@@ -102,4 +106,59 @@ pub const VM = struct {
     fn readConstant(self: *VM) Value {
         return self.chunk.constants.items[self.readByte()];
     }
+
+    fn peek(self: *const VM, distance: usize) Value {
+        return self.stack.items[self.stack.items.len - 1 - distance];
+    }
+
+    fn runtimeError(self: *VM, comptime format: []const u8, args: anytype) void {
+        std.debug.print(format, args);
+        const offset = @intFromPtr(self.ip) - @intFromPtr(self.chunk.code.items.ptr) - 1;
+        const line = self.chunk.lines.items[offset];
+        std.debug.print("\n[line {}] in script\n", .{line});
+        self.stack.deinit();
+    }
+
+    fn binaryOp(self: *VM, comptime op: fn (f64, f64) Value) !void {
+        const numbers = switch (self.peek(0)) {
+            .number => switch (self.peek(1)) {
+                .number => true,
+                else => false,
+            },
+            else => false,
+        };
+
+        if (!numbers) {
+            self.runtimeError("Operands must be numbers.", .{});
+            return error.RuntimeError;
+        }
+
+        const b = self.stack.pop().number;
+        const a = self.stack.pop().number;
+        try self.stack.append(op(a, b));
+    }
 };
+
+fn add(a: f64, b: f64) Value {
+    return Value.number(a + b);
+}
+
+fn sub(a: f64, b: f64) Value {
+    return Value.number(a - b);
+}
+
+fn mul(a: f64, b: f64) Value {
+    return Value.number(a * b);
+}
+
+fn div(a: f64, b: f64) Value {
+    return Value.number(a / b);
+}
+
+fn greater(a: f64, b: f64) Value {
+    return Value.boolean(a > b);
+}
+
+fn less(a: f64, b: f64) Value {
+    return Value.boolean(a < b);
+}

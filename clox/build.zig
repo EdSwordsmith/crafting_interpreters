@@ -11,15 +11,12 @@ pub fn build(b: *std.Build) void {
     });
 
     // Project flags
-    // For now these will always be true
     // const debug_trace_execution = b.option(bool, "debug_trace_execution", "Disassemble the bytecode instruction when executing.") orelse false;
     // const debug_print_code = b.option(bool, "debug_print_code", "Disassemble the chunk's bytecode after compiling.") orelse false;
-    const debug_trace_execution = true;
-    const debug_print_code = true;
-
+    const debug = b.option(bool, "debug", "Enable debug features.") orelse false;
     const options = b.addOptions();
-    options.addOption(bool, "debug_trace_execution", debug_trace_execution);
-    options.addOption(bool, "debug_print_code", debug_print_code);
+    options.addOption(bool, "debug_trace_execution", debug);
+    options.addOption(bool, "debug_print_code", debug);
     exe.addOptions("flags", options);
 
     b.installArtifact(exe);

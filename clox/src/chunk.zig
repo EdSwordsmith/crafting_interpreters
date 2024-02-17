@@ -1,9 +1,8 @@
 const std = @import("std");
 
 const Value = @import("./value.zig").Value;
-const printValue = @import("./value.zig").printValue;
 
-pub const OpCode = enum(u8) { Constant, Add, Subtract, Multiply, Divide, Negate, Return };
+pub const OpCode = enum(u8) { Constant, Nil, True, False, Equal, Greater, Less, Add, Subtract, Multiply, Divide, Not, Negate, Return };
 
 pub const Chunk = struct {
     code: std.ArrayList(u8),
@@ -58,11 +57,22 @@ pub const Chunk = struct {
         const instruction: OpCode = @enumFromInt(self.code.items[offset]);
         return switch (instruction) {
             .Constant => self.constantInstruction("OP_CONSTANT", offset),
+            .Nil => self.simpleInstruction("OP_NIL", offset),
+            .True => self.simpleInstruction("OP_TRUE", offset),
+            .False => self.simpleInstruction("OP_FALSE", offset),
+
+            .Equal => self.simpleInstruction("OP_EQUAL", offset),
+            .Greater => self.simpleInstruction("OP_GREATER", offset),
+            .Less => self.simpleInstruction("OP_LESS", offset),
+
             .Add => self.simpleInstruction("OP_ADD", offset),
             .Subtract => self.simpleInstruction("OP_SUBTRACT", offset),
             .Multiply => self.simpleInstruction("OP_MULTIPLY", offset),
             .Divide => self.simpleInstruction("OP_DIVIDE", offset),
+
+            .Not => self.simpleInstruction("OP_NOT", offset),
             .Negate => self.simpleInstruction("OP_NEGATE", offset),
+
             .Return => self.simpleInstruction("OP_RETURN", offset),
         };
     }
@@ -70,7 +80,7 @@ pub const Chunk = struct {
     fn constantInstruction(self: *const Chunk, name: []const u8, offset: usize) usize {
         const constant = self.code.items[offset + 1];
         std.debug.print("{s: <16} {: >4} '", .{ name, constant });
-        printValue(self.constants.items[constant]);
+        self.constants.items[constant].print();
         std.debug.print("'\n", .{});
         return offset + 2;
     }

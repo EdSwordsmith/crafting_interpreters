@@ -25,21 +25,37 @@ const Precedence = enum {
 const ParseFn = *const fn (*Compiler) anyerror!void;
 
 const ParseRule = struct {
-    prefix: ?ParseFn,
-    infix: ?ParseFn,
-    precedence: Precedence,
+    prefix: ?ParseFn = null,
+    infix: ?ParseFn = null,
+    precedence: Precedence = Precedence.None,
 };
 
 fn getRules() std.EnumArray(TokenType, ParseRule) {
-    const defaultRule = ParseRule{ .prefix = null, .infix = null, .precedence = Precedence.None };
-    var array = std.EnumArray(TokenType, ParseRule).initFill(defaultRule);
+    var array = std.EnumArray(TokenType, ParseRule).initFill(ParseRule{});
 
-    array.set(TokenType.LeftParen, .{ .prefix = Compiler.grouping, .infix = null, .precedence = Precedence.None });
+    array.set(TokenType.LeftParen, .{ .prefix = Compiler.grouping });
+
+    // Unary
     array.set(TokenType.Minus, .{ .prefix = Compiler.unary, .infix = Compiler.binary, .precedence = Precedence.Term });
-    array.set(TokenType.Plus, .{ .prefix = null, .infix = Compiler.binary, .precedence = Precedence.Term });
-    array.set(TokenType.Slash, .{ .prefix = null, .infix = Compiler.binary, .precedence = Precedence.Factor });
-    array.set(TokenType.Star, .{ .prefix = null, .infix = Compiler.binary, .precedence = Precedence.Factor });
-    array.set(TokenType.Number, .{ .prefix = Compiler.number, .infix = null, .precedence = Precedence.None });
+    array.set(TokenType.Bang, .{ .prefix = Compiler.unary });
+
+    // Binary Operations
+    array.set(TokenType.Plus, .{ .infix = Compiler.binary, .precedence = Precedence.Term });
+    array.set(TokenType.Slash, .{ .infix = Compiler.binary, .precedence = Precedence.Factor });
+    array.set(TokenType.Star, .{ .infix = Compiler.binary, .precedence = Precedence.Factor });
+
+    array.set(TokenType.EqualEqual, .{ .infix = Compiler.binary, .precedence = Precedence.Equality });
+    array.set(TokenType.BangEqual, .{ .infix = Compiler.binary, .precedence = Precedence.Equality });
+    array.set(TokenType.Greater, .{ .infix = Compiler.binary, .precedence = Precedence.Comparison });
+    array.set(TokenType.GreaterEqual, .{ .infix = Compiler.binary, .precedence = Precedence.Comparison });
+    array.set(TokenType.Less, .{ .infix = Compiler.binary, .precedence = Precedence.Comparison });
+    array.set(TokenType.LessEqual, .{ .infix = Compiler.binary, .precedence = Precedence.Comparison });
+
+    // Literals
+    array.set(TokenType.Number, .{ .prefix = Compiler.number });
+    array.set(TokenType.True, .{ .prefix = Compiler.literal });
+    array.set(TokenType.False, .{ .prefix = Compiler.literal });
+    array.set(TokenType.Nil, .{ .prefix = Compiler.literal });
 
     return array;
 }
@@ -108,10 +124,19 @@ pub const Compiler = struct {
 
     fn number(self: *Compiler) !void {
         const value = try std.fmt.parseFloat(f64, self.parser.previous.lexeme);
-        const constant = try self.makeConstant(value);
+        const constant = try self.makeConstant(Value{ .number = value });
 
         try self.emitOp(OpCode.Constant);
         try self.emitByte(constant);
+    }
+
+    fn literal(self: *Compiler) !void {
+        switch (self.parser.previous.token_type) {
+            .False => try self.emitOp(OpCode.False),
+            .Nil => try self.emitOp(OpCode.Nil),
+            .True => try self.emitOp(OpCode.True),
+            else => return,
+        }
     }
 
     fn grouping(self: *Compiler) !void {
@@ -128,6 +153,7 @@ pub const Compiler = struct {
         // Emit the operator instruction.
         switch (operatorType) {
             .Minus => try self.emitOp(OpCode.Negate),
+            .Bang => try self.emitOp(OpCode.Not),
             else => {},
         }
     }
@@ -138,10 +164,27 @@ pub const Compiler = struct {
         try self.parsePrecedence(@enumFromInt(@intFromEnum(rule.precedence) + 1));
 
         switch (operatorType) {
-            TokenType.Plus => try self.emitOp(OpCode.Add),
-            TokenType.Minus => try self.emitOp(OpCode.Subtract),
-            TokenType.Star => try self.emitOp(OpCode.Multiply),
-            TokenType.Slash => try self.emitOp(OpCode.Divide),
+            .Plus => try self.emitOp(OpCode.Add),
+            .Minus => try self.emitOp(OpCode.Subtract),
+            .Star => try self.emitOp(OpCode.Multiply),
+            .Slash => try self.emitOp(OpCode.Divide),
+
+            .EqualEqual => try self.emitOp(OpCode.Equal),
+            .BangEqual => {
+                try self.emitOp(OpCode.Equal);
+                try self.emitOp(OpCode.Not);
+            },
+            .Greater => try self.emitOp(OpCode.Greater),
+            .GreaterEqual => {
+                try self.emitOp(OpCode.Less);
+                try self.emitOp(OpCode.Not);
+            },
+            .Less => try self.emitOp(OpCode.Less),
+            .LessEqual => {
+                try self.emitOp(OpCode.Greater);
+                try self.emitOp(OpCode.Not);
+            },
+
             else => {},
         }
     }
