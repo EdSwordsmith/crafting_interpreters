@@ -52,6 +52,7 @@ fn parseArgs() error{ShowUsage}!?[]const u8 {
 
 fn repl(vm: *VM) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = arena.allocator();
     defer arena.deinit();
 
     const stdin = std.io.getStdIn().reader();
@@ -60,7 +61,7 @@ fn repl(vm: *VM) !void {
     while (true) {
         try stdout.print("> ", .{});
 
-        var line = std.ArrayList(u8).init(arena.allocator());
+        var line = std.ArrayList(u8).init(allocator);
         defer line.deinit();
 
         stdin.streamUntilDelimiter(line.writer(), '\n', null) catch |err| switch (err) {
@@ -71,7 +72,7 @@ fn repl(vm: *VM) !void {
             else => return err,
         };
 
-        vm.interpret(line.items) catch {};
+        vm.interpret(allocator, line.items) catch {};
     }
 }
 
@@ -89,5 +90,5 @@ fn runFile(vm: *VM, file_name: []const u8) !void {
     const buffer = try allocator.alloc(u8, stat.size);
     _ = try file.readAll(buffer);
 
-    try vm.interpret(buffer);
+    try vm.interpret(allocator, buffer);
 }

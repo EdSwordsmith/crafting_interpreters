@@ -4,11 +4,10 @@ const Chunk = @import("chunk.zig").Chunk;
 const OpCode = @import("chunk.zig").OpCode;
 const Value = @import("value.zig").Value;
 const printValue = @import("value.zig").printValue;
-const compiler = @import("compiler.zig");
+const Compiler = @import("compiler.zig").Compiler;
+const flags = @import("flags");
 
-pub const Errors = error{ CompileError, RuntimeError };
-
-const debug_trace_execution = true;
+pub const VMErrors = error{ CompileError, RuntimeError };
 
 pub const VM = struct {
     chunk: *const Chunk,
@@ -23,17 +22,21 @@ pub const VM = struct {
         self.stack.deinit();
     }
 
-    pub fn interpret(self: *VM, source: []const u8) Errors!void {
-        _ = self;
-        compiler.compile(source);
-        // self.chunk = chunk;
-        // self.ip = chunk.code.items.ptr;
-        // try self.run();
+    pub fn interpret(self: *VM, allocator: std.mem.Allocator, source: []const u8) !void {
+        var compiler = Compiler.init(allocator, source);
+        defer compiler.deinit();
+
+        var chunk = try compiler.compile();
+        defer chunk.deinit();
+
+        self.chunk = &chunk;
+        self.ip = self.chunk.code.items.ptr;
+        try self.run();
     }
 
     pub fn run(self: *VM) !void {
         while (true) {
-            if (debug_trace_execution) {
+            if (flags.debug_trace_execution) {
                 std.debug.print("          ", .{});
                 for (self.stack.items) |value| {
                     std.debug.print("[ ", .{});

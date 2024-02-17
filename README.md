@@ -26,4 +26,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [Chunks of Bytecode](notes/14_chunks_of_bytecode.md)
 - [A Virtual Machine](notes/15_a_virtual_machine.md)
 - [Scanning on Demand](notes/16_scanning_on_demand.md)
-
+- [Compiling Expressions](notes/17_compiling_expressions.md)
