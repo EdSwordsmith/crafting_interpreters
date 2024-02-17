@@ -11,6 +11,7 @@ const flags = @import("flags");
 const Precedence = enum {
     None,
     Assignment, // =
+    Ternary, // ?:
     Or, // or
     And, // and
     Equality, // == !=
@@ -40,6 +41,8 @@ fn getRules() std.EnumArray(TokenType, ParseRule) {
     array.set(TokenType.Slash, .{ .prefix = null, .infix = Compiler.binary, .precedence = Precedence.Factor });
     array.set(TokenType.Star, .{ .prefix = null, .infix = Compiler.binary, .precedence = Precedence.Factor });
     array.set(TokenType.Number, .{ .prefix = Compiler.number, .infix = null, .precedence = Precedence.None });
+
+    array.set(TokenType.QuestionMark, .{ .prefix = null, .infix = Compiler.ternary, .precedence = Precedence.Ternary });
 
     return array;
 }
@@ -144,6 +147,12 @@ pub const Compiler = struct {
             TokenType.Slash => try self.emitOp(OpCode.Divide),
             else => {},
         }
+    }
+
+    fn ternary(self: *Compiler) !void {
+        try self.parsePrecedence(Precedence.Ternary);
+        self.consume(TokenType.Colon, "Expect : in ternary expression.");
+        try self.parsePrecedence(Precedence.Or);
     }
 
     fn emitByte(self: *Compiler, byte: u8) !void {

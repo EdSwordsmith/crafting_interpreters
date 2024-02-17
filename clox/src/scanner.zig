@@ -13,6 +13,9 @@ pub const TokenType = enum {
     Semicolon,
     Slash,
     Star,
+    // Challenge tokens
+    QuestionMark,
+    Colon,
 
     // One or two character tokens.
     Bang,
@@ -96,6 +99,9 @@ pub const Scanner = struct {
             '+' => self.makeToken(TokenType.Plus),
             '/' => self.makeToken(TokenType.Slash),
             '*' => self.makeToken(TokenType.Star),
+
+            '?' => self.makeToken(TokenType.QuestionMark),
+            ':' => self.makeToken(TokenType.Colon),
 
             '!' => self.makeToken(if (self.match('=')) TokenType.BangEqual else TokenType.Bang),
             '=' => self.makeToken(if (self.match('=')) TokenType.EqualEqual else TokenType.Equal),
