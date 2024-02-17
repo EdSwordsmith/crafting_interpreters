@@ -37,4 +37,6 @@ The trace produced is the following:
 
 2. I believe TOKEN\_LEFT\_PAREN will also have an infix operation when we get to function calls, which also happens in C. Another example in C is the '*' which can be used as a prefix for pointer dereferencing and as infix for multiplication.
 
-3. WIP
+3. For this I created two new token types and made the scanner produce them, as well as make a new precedence level for this expression. Added a function to parse these and put it as the infix function for '?'. In this function, I call `parsePrecedence` then consume a `:` and call `parsePrecedence` again. I think I got most of it right, but the precedence level that should be used inside might be wrong.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/17_ternary).
