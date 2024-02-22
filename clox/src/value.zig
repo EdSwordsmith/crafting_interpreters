@@ -47,7 +47,7 @@ pub const Value = union(enum) {
 
     pub fn equal(a: Value, b: Value) bool {
         return switch (a) {
-            .obj => std.mem.eql(u8, a.obj.data.string, b.obj.data.string),
+            .obj => std.mem.eql(u8, a.obj.data.string.items, b.obj.data.string.items),
             else => std.meta.eql(a, b),
         };
     }

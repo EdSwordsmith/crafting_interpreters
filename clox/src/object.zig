@@ -1,8 +1,13 @@
 const std = @import("std");
 
 pub const Obj = struct {
+    const String = struct {
+        items: []const u8,
+        owned: bool,
+    };
+
     const Data = union(enum) {
-        string: []const u8,
+        string: String,
     };
 
     next: ?*Obj = null,
@@ -10,7 +15,7 @@ pub const Obj = struct {
 
     pub fn print(self: *Obj) void {
         switch (self.data) {
-            .string => std.debug.print("{s}", .{self.data.string}),
+            .string => std.debug.print("{s}", .{self.data.string.items}),
         }
     }
 };
@@ -28,7 +33,7 @@ pub const ObjList = struct {
             self.head = obj.next;
 
             switch (obj.data) {
-                .string => self.allocator.free(obj.data.string),
+                .string => if (obj.data.string.owned) self.allocator.free(obj.data.string.items),
             }
 
             self.allocator.destroy(obj);

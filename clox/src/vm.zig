@@ -102,15 +102,15 @@ pub const VM = struct {
                         const a = self.stack.pop().number;
                         try self.stack.append(Value.number(a + b));
                     } else if (self.peek(0).isString() and self.peek(1).isString()) {
-                        const b: []const u8 = self.stack.pop().obj.data.string;
-                        const a: []const u8 = self.stack.pop().obj.data.string;
+                        const b: []const u8 = self.stack.pop().obj.data.string.items;
+                        const a: []const u8 = self.stack.pop().obj.data.string.items;
 
                         var result = try self.objects.allocator.alloc(u8, a.len + b.len);
                         @memcpy(result[0..a.len], a);
                         @memcpy(result[a.len..], b);
 
                         const obj = try self.objects.new();
-                        obj.data.string = result;
+                        obj.data.string = .{ .owned = true, .items = result };
                         try self.stack.append(Value.obj(obj));
                     } else {
                         self.runtimeError("Operands must be numbers.", .{});
