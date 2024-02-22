@@ -11,3 +11,5 @@ This leads to how I'm managing memory. Until now I was using an arena allocator 
 2. This seemed easy as I only had to add a flag to tell if a string is owned or not and use that to know if we are able to free the string's memory. This implementation is only good for how the repl is working now as the lifetime of the strings memory will have to be bigger once we have variables. However, it would be perfectly fine for running files as the lifetime of the file's source code is (almost) the entire program.
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/19_owned).
+
+3. I'm not a fan of implicit convertions so I would throw a runtime error. Languages such as Python and Julia also handle it this way, and the values of other types have to be explicitly converted into string before being able to concatenate. An alternative is a string interpolation mechanism or some kind of format strings.
