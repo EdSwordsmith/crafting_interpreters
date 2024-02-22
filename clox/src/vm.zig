@@ -3,6 +3,7 @@ const std = @import("std");
 const Chunk = @import("chunk.zig").Chunk;
 const OpCode = @import("chunk.zig").OpCode;
 const Value = @import("value.zig").Value;
+const ObjList = @import("object.zig").ObjList;
 const Compiler = @import("compiler.zig").Compiler;
 const flags = @import("flags");
 
@@ -12,21 +13,31 @@ pub const VM = struct {
     chunk: *const Chunk,
     ip: [*]const u8,
     stack: std.ArrayList(Value),
+    objects: ObjList,
 
-    pub fn init(allocator: std.mem.Allocator) VM {
-        return VM{ .chunk = undefined, .ip = undefined, .stack = std.ArrayList(Value).init(allocator) };
+    pub fn init(object_allocator: std.mem.Allocator, stack_allocator: std.mem.Allocator) !VM {
+        var stack = std.ArrayList(Value).init(stack_allocator);
+        try stack.ensureTotalCapacityPrecise(256);
+
+        return VM{
+            .objects = ObjList.init(object_allocator),
+            .chunk = undefined,
+            .ip = undefined,
+            .stack = stack,
+        };
     }
 
     pub fn deinit(self: *VM) void {
         self.stack.deinit();
+        self.objects.deinit();
     }
 
-    pub fn interpret(self: *VM, allocator: std.mem.Allocator, source: []const u8) !void {
-        var compiler = Compiler.init(allocator, source);
+    pub fn interpret(self: *VM, source: []const u8, allocator: std.mem.Allocator) !void {
+        var compiler = Compiler.init(allocator, &self.objects, source);
         defer compiler.deinit();
 
         var chunk = try compiler.compile();
-        defer chunk.deinit();
+        // defer chunk.deinit();
 
         self.chunk = &chunk;
         self.ip = self.chunk.code.items.ptr;
@@ -64,13 +75,78 @@ pub const VM = struct {
                     const b = self.stack.pop();
                     try self.stack.append(Value.boolean(a.equal(b)));
                 },
-                .Greater => try self.binaryOp(greater),
-                .Less => try self.binaryOp(less),
+                .Greater => {
+                    if (self.peek(0) != .number or self.peek(1) != .number) {
+                        self.runtimeError("Operands must be numbers.", .{});
+                        return error.RuntimeError;
+                    }
 
-                .Add => try self.binaryOp(add),
-                .Subtract => try self.binaryOp(sub),
-                .Multiply => try self.binaryOp(mul),
-                .Divide => try self.binaryOp(div),
+                    const b = self.stack.pop().number;
+                    const a = self.stack.pop().number;
+                    try self.stack.append(Value.boolean(a > b));
+                },
+                .Less => {
+                    if (self.peek(0) != .number or self.peek(1) != .number) {
+                        self.runtimeError("Operands must be numbers.", .{});
+                        return error.RuntimeError;
+                    }
+
+                    const b = self.stack.pop().number;
+                    const a = self.stack.pop().number;
+                    try self.stack.append(Value.boolean(a < b));
+                },
+
+                .Add => {
+                    if (self.peek(0) == .number and self.peek(1) == .number) {
+                        const b = self.stack.pop().number;
+                        const a = self.stack.pop().number;
+                        try self.stack.append(Value.number(a + b));
+                    } else if (self.peek(0).isString() and self.peek(1).isString()) {
+                        const b: []const u8 = self.stack.pop().obj.data.string;
+                        const a: []const u8 = self.stack.pop().obj.data.string;
+
+                        var result = try self.objects.allocator.alloc(u8, a.len + b.len);
+                        @memcpy(result[0..a.len], a);
+                        @memcpy(result[a.len..], b);
+
+                        const obj = try self.objects.new();
+                        obj.data.string = result;
+                        try self.stack.append(Value.obj(obj));
+                    } else {
+                        self.runtimeError("Operands must be numbers.", .{});
+                        return error.RuntimeError;
+                    }
+                },
+                .Subtract => {
+                    if (self.peek(0) != .number or self.peek(1) != .number) {
+                        self.runtimeError("Operands must be numbers.", .{});
+                        return error.RuntimeError;
+                    }
+
+                    const b = self.stack.pop().number;
+                    const a = self.stack.pop().number;
+                    try self.stack.append(Value.number(a - b));
+                },
+                .Multiply => {
+                    if (self.peek(0) != .number or self.peek(1) != .number) {
+                        self.runtimeError("Operands must be numbers.", .{});
+                        return error.RuntimeError;
+                    }
+
+                    const b = self.stack.pop().number;
+                    const a = self.stack.pop().number;
+                    try self.stack.append(Value.number(a * b));
+                },
+                .Divide => {
+                    if (self.peek(0) != .number or self.peek(1) != .number) {
+                        self.runtimeError("Operands must be numbers.", .{});
+                        return error.RuntimeError;
+                    }
+
+                    const b = self.stack.pop().number;
+                    const a = self.stack.pop().number;
+                    try self.stack.append(Value.number(a / b));
+                },
 
                 .Not => try self.stack.append(Value.boolean(self.stack.pop().isFalsey())),
 
@@ -118,47 +194,4 @@ pub const VM = struct {
         std.debug.print("\n[line {}] in script\n", .{line});
         self.stack.deinit();
     }
-
-    fn binaryOp(self: *VM, comptime op: fn (f64, f64) Value) !void {
-        const numbers = switch (self.peek(0)) {
-            .number => switch (self.peek(1)) {
-                .number => true,
-                else => false,
-            },
-            else => false,
-        };
-
-        if (!numbers) {
-            self.runtimeError("Operands must be numbers.", .{});
-            return error.RuntimeError;
-        }
-
-        const b = self.stack.pop().number;
-        const a = self.stack.pop().number;
-        try self.stack.append(op(a, b));
-    }
 };
-
-fn add(a: f64, b: f64) Value {
-    return Value.number(a + b);
-}
-
-fn sub(a: f64, b: f64) Value {
-    return Value.number(a - b);
-}
-
-fn mul(a: f64, b: f64) Value {
-    return Value.number(a * b);
-}
-
-fn div(a: f64, b: f64) Value {
-    return Value.number(a / b);
-}
-
-fn greater(a: f64, b: f64) Value {
-    return Value.boolean(a > b);
-}
-
-fn less(a: f64, b: f64) Value {
-    return Value.boolean(a < b);
-}

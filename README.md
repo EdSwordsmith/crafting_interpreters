@@ -28,3 +28,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [Scanning on Demand](notes/16_scanning_on_demand.md)
 - [Compiling Expressions](notes/17_compiling_expressions.md)
 - [Types of Values](notes/18_types_of_values.md)
+- [Strings](notes/19_strings.md)

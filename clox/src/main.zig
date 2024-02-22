@@ -6,7 +6,10 @@ const Value = @import("value.zig").Value;
 pub fn main() !u8 {
     var stack_buffer: [@sizeOf(Value) * 256]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&stack_buffer);
-    var vm = VM.init(fba.allocator());
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    var vm = try VM.init(gpa.allocator(), fba.allocator());
     defer vm.deinit();
 
     const file = parseArgs() catch {
@@ -51,14 +54,14 @@ fn parseArgs() error{ShowUsage}!?[]const u8 {
 }
 
 fn repl(vm: *VM) !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    const allocator = arena.allocator();
-    defer arena.deinit();
-
     const stdin = std.io.getStdIn().reader();
     const stdout = std.io.getStdOut().writer();
 
     while (true) {
+        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        const allocator = arena.allocator();
+        defer arena.deinit();
+
         try stdout.print("> ", .{});
 
         var line = std.ArrayList(u8).init(allocator);
@@ -72,7 +75,7 @@ fn repl(vm: *VM) !void {
             else => return err,
         };
 
-        vm.interpret(allocator, line.items) catch {};
+        vm.interpret(line.items, allocator) catch {};
     }
 }
 
@@ -90,5 +93,5 @@ fn runFile(vm: *VM, file_name: []const u8) !void {
     const buffer = try allocator.alloc(u8, stat.size);
     _ = try file.readAll(buffer);
 
-    try vm.interpret(allocator, buffer);
+    try vm.interpret(buffer, allocator);
 }

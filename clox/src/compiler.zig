@@ -6,6 +6,7 @@ const Token = @import("scanner.zig").Token;
 const Chunk = @import("chunk.zig").Chunk;
 const OpCode = @import("chunk.zig").OpCode;
 const Value = @import("value.zig").Value;
+const ObjList = @import("object.zig").ObjList;
 const flags = @import("flags");
 
 const Precedence = enum {
@@ -56,6 +57,7 @@ fn getRules() std.EnumArray(TokenType, ParseRule) {
     array.set(TokenType.True, .{ .prefix = Compiler.literal });
     array.set(TokenType.False, .{ .prefix = Compiler.literal });
     array.set(TokenType.Nil, .{ .prefix = Compiler.literal });
+    array.set(TokenType.String, .{ .prefix = Compiler.string });
 
     return array;
 }
@@ -74,12 +76,14 @@ const Parser = struct {
 };
 
 pub const Compiler = struct {
+    allocator: std.mem.Allocator,
+    objects: *ObjList,
     chunk: Chunk,
     scanner: Scanner,
     parser: Parser,
 
-    pub fn init(allocator: std.mem.Allocator, source: []const u8) Compiler {
-        return Compiler{ .chunk = Chunk.init(allocator), .scanner = Scanner.init(source), .parser = Parser.init() };
+    pub fn init(allocator: std.mem.Allocator, objects: *ObjList, source: []const u8) Compiler {
+        return Compiler{ .allocator = allocator, .objects = objects, .chunk = Chunk.init(allocator), .scanner = Scanner.init(source), .parser = Parser.init() };
     }
 
     pub fn deinit(self: *Compiler) void {
@@ -124,7 +128,7 @@ pub const Compiler = struct {
 
     fn number(self: *Compiler) !void {
         const value = try std.fmt.parseFloat(f64, self.parser.previous.lexeme);
-        const constant = try self.makeConstant(Value{ .number = value });
+        const constant = try self.makeConstant(Value.number(value));
 
         try self.emitOp(OpCode.Constant);
         try self.emitByte(constant);
@@ -137,6 +141,16 @@ pub const Compiler = struct {
             .True => try self.emitOp(OpCode.True),
             else => return,
         }
+    }
+
+    fn string(self: *Compiler) !void {
+        const len = self.parser.previous.lexeme.len;
+        const obj = try self.objects.new();
+        obj.data.string = try self.objects.allocator.dupe(u8, self.parser.previous.lexeme[1 .. len - 1]);
+        const constant = try self.makeConstant(Value.obj(obj));
+
+        try self.emitOp(OpCode.Constant);
+        try self.emitByte(constant);
     }
 
     fn grouping(self: *Compiler) !void {

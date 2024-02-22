@@ -1,14 +1,18 @@
 const std = @import("std");
 
+const Obj = @import("object.zig").Obj;
+
 pub const Value = union(enum) {
     number: f64,
     boolean: bool,
+    obj: *Obj,
     nil,
 
     pub fn print(value: Value) void {
         switch (value) {
             .number => std.debug.print("{d}", .{value.number}),
             .boolean => std.debug.print("{}", .{value.boolean}),
+            .obj => value.obj.print(),
             .nil => std.debug.print("nil", .{}),
         }
     }
@@ -25,6 +29,14 @@ pub const Value = union(enum) {
         return Value{ .nil = {} };
     }
 
+    pub fn obj(value: *Obj) Value {
+        return Value{ .obj = value };
+    }
+
+    pub fn isString(value: Value) bool {
+        return value == .obj and value.obj.data == .string;
+    }
+
     pub fn isFalsey(value: Value) bool {
         return switch (value) {
             .nil => true,
@@ -34,6 +46,9 @@ pub const Value = union(enum) {
     }
 
     pub fn equal(a: Value, b: Value) bool {
-        return std.meta.eql(a, b);
+        return switch (a) {
+            .obj => std.mem.eql(u8, a.obj.data.string, b.obj.data.string),
+            else => std.meta.eql(a, b),
+        };
     }
 };
