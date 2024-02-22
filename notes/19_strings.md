@@ -7,3 +7,7 @@ This leads to how I'm managing memory. Until now I was using an arena allocator 
 ## Challenges
 
 1. Flexible array members are not possible in Zig and it would also not work well with how I used a tagged union. Because of this I won't attempt this challenge.
+
+2. This seemed easy as I only had to add a flag to tell if a string is owned or not and use that to know if we are able to free the string's memory. This implementation is only good for how the repl is working now as the lifetime of the strings memory will have to be bigger once we have variables. However, it would be perfectly fine for running files as the lifetime of the file's source code is (almost) the entire program.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/19_owned).
