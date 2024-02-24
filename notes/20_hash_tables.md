@@ -6,7 +6,11 @@ Similar to the book, I added the hash as a field to a new string struct. I made 
 
 ## Challenges
 
-1. WIP
+1. All it was needed was change the `hash` and `eql` methods used by the hash map. For numbers, the hash is simply their bit representation and I simply picked random hash values for the other value types (nil, true/false). Since we have Zig's `std.HashMap`, not many changes were actually required to achieve this.
+
+As for supporting class instances as keys, it's not as simple. We could simply use the address in memory of the object as it's hash value, but maybe the user would want to have two class instances with the same values to have the same hash and act as equal, so we could also allow classes to have the `hash` and `eql` methods to allow some level of customization. I believe this is the default behaviour in Java. In contrast, python does not allow mutable data structures to be used as keys and class instances have to implement these methods in order to be used as keys.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/20_value_keys).
 
 2. WIP
 
