@@ -73,7 +73,7 @@ pub const VM = struct {
                 .Equal => {
                     const a = self.stack.pop();
                     const b = self.stack.pop();
-                    try self.stack.append(Value.boolean(a.equal(b)));
+                    try self.stack.append(Value.boolean(std.meta.eql(a, b)));
                 },
                 .Greater => {
                     if (self.peek(0) != .number or self.peek(1) != .number) {
@@ -102,15 +102,14 @@ pub const VM = struct {
                         const a = self.stack.pop().number;
                         try self.stack.append(Value.number(a + b));
                     } else if (self.peek(0).isString() and self.peek(1).isString()) {
-                        const b: []const u8 = self.stack.pop().obj.data.string;
-                        const a: []const u8 = self.stack.pop().obj.data.string;
+                        const b: []const u8 = self.stack.pop().obj.data.string.chars;
+                        const a: []const u8 = self.stack.pop().obj.data.string.chars;
 
                         var result = try self.objects.allocator.alloc(u8, a.len + b.len);
                         @memcpy(result[0..a.len], a);
                         @memcpy(result[a.len..], b);
 
-                        const obj = try self.objects.new();
-                        obj.data.string = result;
+                        const obj = try self.objects.newString(result);
                         try self.stack.append(Value.obj(obj));
                     } else {
                         self.runtimeError("Operands must be numbers.", .{});

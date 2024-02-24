@@ -2,7 +2,22 @@ const std = @import("std");
 
 const Value = @import("./value.zig").Value;
 
-pub const OpCode = enum(u8) { Constant, Nil, True, False, Equal, Greater, Less, Add, Subtract, Multiply, Divide, Not, Negate, Return };
+pub const OpCode = enum(u8) {
+    Constant,
+    Nil,
+    True,
+    False,
+    Equal,
+    Greater,
+    Less,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Not,
+    Negate,
+    Return,
+};
 
 pub const Chunk = struct {
     code: std.ArrayList(u8),

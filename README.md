@@ -29,3 +29,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [Compiling Expressions](notes/17_compiling_expressions.md)
 - [Types of Values](notes/18_types_of_values.md)
 - [Strings](notes/19_strings.md)
+- [Hash Tables](notes/20_hash_tables.md)

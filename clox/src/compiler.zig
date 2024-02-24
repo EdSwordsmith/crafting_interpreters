@@ -145,8 +145,8 @@ pub const Compiler = struct {
 
     fn string(self: *Compiler) !void {
         const len = self.parser.previous.lexeme.len;
-        const obj = try self.objects.new();
-        obj.data.string = try self.objects.allocator.dupe(u8, self.parser.previous.lexeme[1 .. len - 1]);
+        const chars = try self.objects.allocator.dupe(u8, self.parser.previous.lexeme[1 .. len - 1]);
+        const obj = try self.objects.newString(chars);
         const constant = try self.makeConstant(Value.obj(obj));
 
         try self.emitOp(OpCode.Constant);
