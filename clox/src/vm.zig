@@ -7,8 +7,6 @@ const ObjList = @import("object.zig").ObjList;
 const Compiler = @import("compiler.zig").Compiler;
 const flags = @import("flags");
 
-pub const VMErrors = error{ CompileError, RuntimeError };
-
 pub const VM = struct {
     chunk: *const Chunk,
     ip: [*]const u8,

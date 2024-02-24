@@ -12,6 +12,4 @@ As for supporting class instances as keys, it's not as simple. We could simply u
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/20_value_keys).
 
-2. WIP
-
-3. WIP
+2. I decided to look a bit into the implementation of Lua's tables, which can act as both arrays and hash maps. The source code for these can be found [here](https://www.lua.org/source/5.1/ltable.c.html) as well as on [this header file](https://www.lua.org/source/5.1/lobject.h.html). Table's have an array component and a hash map component and looking at how the hash map component structures are it seems they use separate chaining as the node's keys contain a pointer to the next node.
