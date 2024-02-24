@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const Table = @import("table.zig").Table;
+const Value = @import("value.zig").Value;
 
 pub const Obj = struct {
     pub const String = struct {
@@ -81,10 +82,10 @@ pub const ObjList = struct {
         const obj = try self.new();
         obj.data.string = Obj.String.init(chars);
 
-        const result = try self.strings.getOrPut(obj);
+        const result = try self.strings.getOrPut(Value.obj(obj));
         if (result.found_existing)
             self.pop();
 
-        return result.key_ptr.*;
+        return result.key_ptr.obj;
     }
 };
