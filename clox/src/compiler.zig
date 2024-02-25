@@ -7,6 +7,7 @@ const Chunk = @import("chunk.zig").Chunk;
 const OpCode = @import("chunk.zig").OpCode;
 const Value = @import("value.zig").Value;
 const ObjList = @import("object.zig").ObjList;
+const Table = @import("table.zig").Table;
 const flags = @import("flags");
 
 const Precedence = enum {
@@ -77,15 +78,25 @@ const Parser = struct {
     }
 };
 
+const StringsTable = Table(u8, .{});
+
 pub const Compiler = struct {
     allocator: std.mem.Allocator,
     objects: *ObjList,
     chunk: Chunk,
     scanner: Scanner,
     parser: Parser,
+    string_constants: StringsTable,
 
     pub fn init(allocator: std.mem.Allocator, objects: *ObjList, source: []const u8) Compiler {
-        return Compiler{ .allocator = allocator, .objects = objects, .chunk = Chunk.init(allocator), .scanner = Scanner.init(source), .parser = Parser.init() };
+        return Compiler{
+            .allocator = allocator,
+            .objects = objects,
+            .chunk = Chunk.init(allocator),
+            .scanner = Scanner.init(source),
+            .parser = Parser.init(),
+            .string_constants = StringsTable.init(allocator),
+        };
     }
 
     pub fn deinit(self: *Compiler) void {
@@ -236,7 +247,13 @@ pub const Compiler = struct {
     fn identifierConstant(self: *Compiler, name: *const Token) !u8 {
         const chars = try self.objects.allocator.dupe(u8, name.lexeme);
         const obj = try self.objects.newString(chars);
+
+        if (self.string_constants.get(obj)) |index| {
+            return index;
+        }
+
         const constant = try self.makeConstant(Value.obj(obj));
+        try self.string_constants.put(obj, constant);
         return constant;
     }
 
