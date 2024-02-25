@@ -30,3 +30,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [Types of Values](notes/18_types_of_values.md)
 - [Strings](notes/19_strings.md)
 - [Hash Tables](notes/20_hash_tables.md)
+- [Global Variables](notes/21_global_variables.md)

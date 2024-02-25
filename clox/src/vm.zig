@@ -5,13 +5,17 @@ const OpCode = @import("chunk.zig").OpCode;
 const Value = @import("value.zig").Value;
 const ObjList = @import("object.zig").ObjList;
 const Compiler = @import("compiler.zig").Compiler;
+const Table = @import("table.zig").Table;
 const flags = @import("flags");
+
+const ValueTable = Table(Value, .{});
 
 pub const VM = struct {
     chunk: *const Chunk,
     ip: [*]const u8,
     stack: std.ArrayList(Value),
     objects: ObjList,
+    globals: ValueTable,
 
     pub fn init(object_allocator: std.mem.Allocator, stack_allocator: std.mem.Allocator) !VM {
         var stack = std.ArrayList(Value).init(stack_allocator);
@@ -22,12 +26,14 @@ pub const VM = struct {
             .chunk = undefined,
             .ip = undefined,
             .stack = stack,
+            .globals = ValueTable.init(object_allocator),
         };
     }
 
     pub fn deinit(self: *VM) void {
         self.stack.deinit();
         self.objects.deinit();
+        self.globals.deinit();
     }
 
     pub fn interpret(self: *VM, source: []const u8, allocator: std.mem.Allocator) !void {
@@ -67,6 +73,33 @@ pub const VM = struct {
                 .Nil => try self.stack.append(Value.nil()),
                 .True => try self.stack.append(Value.boolean(true)),
                 .False => try self.stack.append(Value.boolean(false)),
+                .Pop => {
+                    _ = self.stack.pop();
+                },
+
+                .GetGlobal => {
+                    const name = self.readConstant().obj;
+                    const value = self.globals.get(name);
+                    if (value) |v| {
+                        try self.stack.append(v);
+                    } else {
+                        self.runtimeError("Undefined variable '{s}'.", .{name.data.string.chars});
+                        return error.RuntimeError;
+                    }
+                },
+                .DefineGlobal => {
+                    const name = self.readConstant().obj;
+                    try self.globals.put(name, self.stack.pop());
+                },
+                .SetGlobal => {
+                    const name = self.readConstant().obj;
+                    if (self.globals.getPtr(name)) |value| {
+                        value.* = self.peek(0);
+                    } else {
+                        self.runtimeError("Undefined variable '{s}'.", .{name.data.string.chars});
+                        return error.RuntimeError;
+                    }
+                },
 
                 .Equal => {
                     const a = self.stack.pop();
@@ -161,11 +194,12 @@ pub const VM = struct {
                     }
                 },
 
-                .Return => {
+                .Print => {
                     self.stack.pop().print();
                     std.debug.print("\n", .{});
-                    return;
                 },
+
+                .Return => return,
             }
         }
     }

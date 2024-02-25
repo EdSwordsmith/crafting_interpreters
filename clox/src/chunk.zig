@@ -7,6 +7,10 @@ pub const OpCode = enum(u8) {
     Nil,
     True,
     False,
+    Pop,
+    GetGlobal,
+    DefineGlobal,
+    SetGlobal,
     Equal,
     Greater,
     Less,
@@ -16,6 +20,7 @@ pub const OpCode = enum(u8) {
     Divide,
     Not,
     Negate,
+    Print,
     Return,
 };
 
@@ -43,9 +48,9 @@ pub const Chunk = struct {
         try self.lines.append(line);
     }
 
-    pub fn addConstant(self: *Chunk, value: Value) !u8 {
+    pub fn addConstant(self: *Chunk, value: Value) !usize {
         try self.constants.append(value);
-        return @as(u8, @truncate(self.constants.items.len - 1));
+        return self.constants.items.len - 1;
     }
 
     pub fn disassemble(self: *const Chunk, name: []const u8) void {
@@ -75,6 +80,11 @@ pub const Chunk = struct {
             .Nil => self.simpleInstruction("OP_NIL", offset),
             .True => self.simpleInstruction("OP_TRUE", offset),
             .False => self.simpleInstruction("OP_FALSE", offset),
+            .Pop => self.simpleInstruction("OP_POP", offset),
+
+            .GetGlobal => self.constantInstruction("OP_GET_GLOBAL", offset),
+            .DefineGlobal => self.constantInstruction("OP_DEFINE_GLOBAL", offset),
+            .SetGlobal => self.constantInstruction("OP_SET_GLOBAL", offset),
 
             .Equal => self.simpleInstruction("OP_EQUAL", offset),
             .Greater => self.simpleInstruction("OP_GREATER", offset),
@@ -87,6 +97,8 @@ pub const Chunk = struct {
 
             .Not => self.simpleInstruction("OP_NOT", offset),
             .Negate => self.simpleInstruction("OP_NEGATE", offset),
+
+            .Print => self.simpleInstruction("OP_PRINT", offset),
 
             .Return => self.simpleInstruction("OP_RETURN", offset),
         };
