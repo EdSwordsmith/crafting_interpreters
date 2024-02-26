@@ -31,3 +31,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [Strings](notes/19_strings.md)
 - [Hash Tables](notes/20_hash_tables.md)
 - [Global Variables](notes/21_global_variables.md)
+- [Local Variables](notes/22_local_variables.md)

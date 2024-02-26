@@ -8,6 +8,8 @@ pub const OpCode = enum(u8) {
     True,
     False,
     Pop,
+    GetLocal,
+    SetLocal,
     GetGlobal,
     DefineGlobal,
     SetGlobal,
@@ -82,6 +84,9 @@ pub const Chunk = struct {
             .False => self.simpleInstruction("OP_FALSE", offset),
             .Pop => self.simpleInstruction("OP_POP", offset),
 
+            .GetLocal => self.byteInstruction("OP_GET_LOCAL", offset),
+            .SetLocal => self.byteInstruction("OP_SET_LOCAL", offset),
+
             .GetGlobal => self.constantInstruction("OP_GET_GLOBAL", offset),
             .DefineGlobal => self.constantInstruction("OP_DEFINE_GLOBAL", offset),
             .SetGlobal => self.constantInstruction("OP_SET_GLOBAL", offset),
@@ -116,5 +121,11 @@ pub const Chunk = struct {
         _ = self;
         std.debug.print("{s}\n", .{name});
         return offset + 1;
+    }
+
+    fn byteInstruction(self: *const Chunk, name: []const u8, offset: usize) usize {
+        const slot = self.code.items[offset + 1];
+        std.debug.print("{s: <16} {: >4}\n", .{ name, slot });
+        return offset + 2;
     }
 };

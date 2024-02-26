@@ -77,6 +77,15 @@ pub const VM = struct {
                     _ = self.stack.pop();
                 },
 
+                .GetLocal => {
+                    const local = self.readByte();
+                    try self.stack.append(self.stack.items[local]);
+                },
+                .SetLocal => {
+                    const local = self.readByte();
+                    self.stack.items[local] = self.peek(0);
+                },
+
                 .GetGlobal => {
                     const name = self.readConstant().obj;
                     const value = self.globals.get(name);
