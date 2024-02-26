@@ -67,14 +67,10 @@ fn getRules() std.EnumArray(TokenType, ParseRule) {
 const rules = getRules();
 
 const Parser = struct {
-    current: Token,
-    previous: Token,
-    hadError: bool,
-    panicMode: bool,
-
-    fn init() Parser {
-        return Parser{ .current = undefined, .previous = undefined, .hadError = false, .panicMode = false };
-    }
+    current: Token = undefined,
+    previous: Token = undefined,
+    had_error: bool = false,
+    panic_mode: bool = false,
 };
 
 const Local = struct {
@@ -87,14 +83,19 @@ pub const Compiler = struct {
     objects: *ObjList,
     chunk: Chunk,
     scanner: Scanner,
-    parser: Parser,
+    parser: Parser = .{},
 
     locals: [256]Local = undefined,
-    localCount: usize = 0,
-    scopeDepth: usize = 0,
+    local_count: usize = 0,
+    scope_depth: usize = 0,
 
     pub fn init(allocator: std.mem.Allocator, objects: *ObjList, source: []const u8) Compiler {
-        return Compiler{ .allocator = allocator, .objects = objects, .chunk = Chunk.init(allocator), .scanner = Scanner.init(source), .parser = Parser.init() };
+        return Compiler{
+            .allocator = allocator,
+            .objects = objects,
+            .chunk = Chunk.init(allocator),
+            .scanner = Scanner.init(source),
+        };
     }
 
     pub fn deinit(self: *Compiler) void {
@@ -110,7 +111,7 @@ pub const Compiler = struct {
 
         try self.emitOp(OpCode.Return);
 
-        if (self.parser.hadError)
+        if (self.parser.had_error)
             return error.CompileError;
 
         if (flags.debug_print_code)
@@ -237,14 +238,14 @@ pub const Compiler = struct {
     }
 
     fn beginScope(self: *Compiler) void {
-        self.scopeDepth += 1;
+        self.scope_depth += 1;
     }
 
     fn endScope(self: *Compiler) !void {
-        self.scopeDepth -= 1;
-        while (self.localCount > 0 and self.locals[self.localCount - 1].depth > self.scopeDepth) {
+        self.scope_depth -= 1;
+        while (self.local_count > 0 and self.locals[self.local_count - 1].depth > self.scope_depth) {
             try self.emitOp(OpCode.Pop);
-            self.localCount -= 1;
+            self.local_count -= 1;
         }
     }
 
@@ -277,13 +278,13 @@ pub const Compiler = struct {
         self.consume(TokenType.Identifier, error_message);
 
         self.declareVariable();
-        if (self.scopeDepth > 0) return 0;
+        if (self.scope_depth > 0) return 0;
 
         return try self.identifierConstant(&self.parser.previous);
     }
 
     fn resolveLocal(self: *Compiler, name: *const Token) ?u8 {
-        var i: isize = @intCast(self.localCount);
+        var i: isize = @intCast(self.local_count);
         i -= 1;
 
         while (i >= 0) : (i -= 1) {
@@ -327,15 +328,15 @@ pub const Compiler = struct {
     }
 
     fn declareVariable(self: *Compiler) void {
-        if (self.scopeDepth == 0) return;
+        if (self.scope_depth == 0) return;
         const name = &self.parser.previous;
 
-        var i: isize = @intCast(self.localCount);
+        var i: isize = @intCast(self.local_count);
         i -= 1;
 
         while (i >= 0) : (i -= 1) {
             const local = &self.locals[@intCast(i)];
-            if (local.depth != -1 and local.depth < self.scopeDepth)
+            if (local.depth != -1 and local.depth < self.scope_depth)
                 break;
 
             if (std.mem.eql(u8, name.lexeme, local.name.lexeme))
@@ -346,13 +347,13 @@ pub const Compiler = struct {
     }
 
     fn addLocal(self: *Compiler, name: Token) void {
-        if (self.localCount == 256) {
+        if (self.local_count == 256) {
             self.errorAtPrevious("Too many local variables in function.");
             return;
         }
 
-        const local = &self.locals[self.localCount];
-        self.localCount += 1;
+        const local = &self.locals[self.local_count];
+        self.local_count += 1;
         local.name = name;
         local.depth = -1;
     }
@@ -368,8 +369,8 @@ pub const Compiler = struct {
 
         self.consume(TokenType.Semicolon, "Expect ';' after variable declaration.");
 
-        if (self.scopeDepth > 0) {
-            self.locals[self.localCount - 1].depth = @intCast(self.scopeDepth);
+        if (self.scope_depth > 0) {
+            self.locals[self.local_count - 1].depth = @intCast(self.scope_depth);
             return;
         }
 
@@ -384,7 +385,7 @@ pub const Compiler = struct {
             try self.statement();
         }
 
-        if (self.parser.panicMode) self.synchronize();
+        if (self.parser.panic_mode) self.synchronize();
     }
 
     fn emitByte(self: *Compiler, byte: u8) !void {
@@ -406,7 +407,7 @@ pub const Compiler = struct {
     }
 
     fn synchronize(self: *Compiler) void {
-        self.parser.panicMode = false;
+        self.parser.panic_mode = false;
 
         while (self.parser.current.token_type != TokenType.EOF) {
             if (self.parser.previous.token_type == TokenType.Semicolon) return;
@@ -455,8 +456,8 @@ pub const Compiler = struct {
     }
 
     fn errorAt(self: *Compiler, token: *Token, message: []const u8) void {
-        if (self.parser.panicMode) return;
-        self.parser.panicMode = true;
+        if (self.parser.panic_mode) return;
+        self.parser.panic_mode = true;
         std.debug.print("[line {}] Error", .{token.line});
 
         if (token.token_type == TokenType.EOF) {
@@ -466,6 +467,6 @@ pub const Compiler = struct {
         }
 
         std.debug.print(": {s}\n", .{message});
-        self.parser.hadError = true;
+        self.parser.had_error = true;
     }
 };
