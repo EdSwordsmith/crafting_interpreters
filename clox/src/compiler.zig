@@ -76,7 +76,11 @@ const Parser = struct {
 const Local = struct {
     name: Token,
     depth: isize,
+    next: ?*Local = null,
+    index: u8,
 };
+
+const LocalMap = std.StringHashMap(*Local);
 
 pub const Compiler = struct {
     allocator: std.mem.Allocator,
@@ -85,6 +89,7 @@ pub const Compiler = struct {
     scanner: Scanner,
     parser: Parser = .{},
 
+    locals_by_name: LocalMap,
     locals: [256]Local = undefined,
     local_count: usize = 0,
     scope_depth: usize = 0,
@@ -95,6 +100,7 @@ pub const Compiler = struct {
             .objects = objects,
             .chunk = Chunk.init(allocator),
             .scanner = Scanner.init(source),
+            .locals_by_name = LocalMap.init(allocator),
         };
     }
 
@@ -244,6 +250,13 @@ pub const Compiler = struct {
     fn endScope(self: *Compiler) !void {
         self.scope_depth -= 1;
         while (self.local_count > 0 and self.locals[self.local_count - 1].depth > self.scope_depth) {
+            const local = &self.locals[self.local_count - 1];
+            if (local.next) |next| {
+                try self.locals_by_name.put(local.name.lexeme, next);
+            } else {
+                _ = self.locals_by_name.remove(local.name.lexeme);
+            }
+
             try self.emitOp(OpCode.Pop);
             self.local_count -= 1;
         }
@@ -284,16 +297,12 @@ pub const Compiler = struct {
     }
 
     fn resolveLocal(self: *Compiler, name: *const Token) ?u8 {
-        var i: isize = @intCast(self.local_count);
-        i -= 1;
-
-        while (i >= 0) : (i -= 1) {
-            const local = &self.locals[@intCast(i)];
+        if (self.locals_by_name.get(name.lexeme)) |local| {
             if (std.mem.eql(u8, name.lexeme, local.name.lexeme)) {
                 if (local.depth == -1)
                     self.errorAtPrevious("Can't read local variable in its own initializer.");
 
-                return @intCast(i);
+                return @intCast(local.index);
             }
         }
 
@@ -331,15 +340,9 @@ pub const Compiler = struct {
         if (self.scope_depth == 0) return;
         const name = &self.parser.previous;
 
-        var i: isize = @intCast(self.local_count);
-        i -= 1;
-
-        while (i >= 0) : (i -= 1) {
-            const local = &self.locals[@intCast(i)];
-            if (local.depth != -1 and local.depth < self.scope_depth)
-                break;
-
-            if (std.mem.eql(u8, name.lexeme, local.name.lexeme))
+        if (self.locals_by_name.get(name.lexeme)) |local| {
+            const same_scope = local.depth == -1 or local.depth >= self.scope_depth;
+            if (same_scope and std.mem.eql(u8, name.lexeme, local.name.lexeme))
                 self.errorAtPrevious("Already a variable with this name in this scope.");
         }
 
@@ -353,9 +356,12 @@ pub const Compiler = struct {
         }
 
         const local = &self.locals[self.local_count];
+        local.index = @as(u8, @truncate(self.local_count));
         self.local_count += 1;
         local.name = name;
         local.depth = -1;
+        local.next = self.locals_by_name.get(name.lexeme);
+        self.locals_by_name.put(name.lexeme, local) catch {};
     }
 
     fn varDeclaration(self: *Compiler) !void {
