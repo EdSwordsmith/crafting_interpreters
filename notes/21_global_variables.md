@@ -8,6 +8,8 @@ This part was mostly easy. I did have some difficulty with the `canAssign` as I 
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/21_reuse_consts).
 
-2. WIP
+2. From my previous small experience with compilers from the course, I imagined it would work better if we mapped the globals into indexes and store the values in an array. The array needs to be able to represent that a variable hasn't been initialized yet, so I used `[256]?Value` as its type since the maximum number of global variables is 256. The hash table and array were put in the VM since the compiler is created everytime `interpret` is called and we need to persist the existing globals when running in the REPL.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/21_global_idx).
 
 3. I'm mostly fond of statically typed languages and in this case would favour reporting it as an error. Reporting it as a warning is also a possibility but I've seen a trend of languages which prefer to report everything as compiler errors even what used to be considered only a warning. An example of this is Zig, which I've been using, where, for example, an unused variable or constant inside a function is considered a compiler error and has to be explicitly ignored. Tested this behaviour in Python and JavaScript, where no error or warning was reported.
