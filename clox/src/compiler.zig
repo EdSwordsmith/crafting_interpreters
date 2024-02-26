@@ -77,15 +77,25 @@ const Parser = struct {
     }
 };
 
+const GlobalNames = @import("vm.zig").GlobalNames;
+
 pub const Compiler = struct {
     allocator: std.mem.Allocator,
     objects: *ObjList,
     chunk: Chunk,
     scanner: Scanner,
     parser: Parser,
+    global_names: *GlobalNames,
 
-    pub fn init(allocator: std.mem.Allocator, objects: *ObjList, source: []const u8) Compiler {
-        return Compiler{ .allocator = allocator, .objects = objects, .chunk = Chunk.init(allocator), .scanner = Scanner.init(source), .parser = Parser.init() };
+    pub fn init(allocator: std.mem.Allocator, objects: *ObjList, source: []const u8, global_names: *GlobalNames) Compiler {
+        return Compiler{
+            .allocator = allocator,
+            .objects = objects,
+            .chunk = Chunk.init(allocator),
+            .scanner = Scanner.init(source),
+            .parser = Parser.init(),
+            .global_names = global_names,
+        };
     }
 
     pub fn deinit(self: *Compiler) void {
@@ -236,8 +246,16 @@ pub const Compiler = struct {
     fn identifierConstant(self: *Compiler, name: *const Token) !u8 {
         const chars = try self.objects.allocator.dupe(u8, name.lexeme);
         const obj = try self.objects.newString(chars);
-        const constant = try self.makeConstant(Value.obj(obj));
-        return constant;
+
+        const existing = self.global_names.get(obj);
+        const new = @as(u8, @truncate(self.global_names.count()));
+        if (existing == null) try self.global_names.put(obj, new);
+
+        // We can only have 256 global variables
+        if (self.global_names.count() > 256)
+            self.errorAtPrevious("Too many global variables.");
+
+        return existing orelse new;
     }
 
     fn parseVariable(self: *Compiler, error_message: []const u8) !u8 {

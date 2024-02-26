@@ -82,9 +82,9 @@ pub const Chunk = struct {
             .False => self.simpleInstruction("OP_FALSE", offset),
             .Pop => self.simpleInstruction("OP_POP", offset),
 
-            .GetGlobal => self.constantInstruction("OP_GET_GLOBAL", offset),
-            .DefineGlobal => self.constantInstruction("OP_DEFINE_GLOBAL", offset),
-            .SetGlobal => self.constantInstruction("OP_SET_GLOBAL", offset),
+            .GetGlobal => self.globalInstruction("OP_GET_GLOBAL", offset),
+            .DefineGlobal => self.globalInstruction("OP_DEFINE_GLOBAL", offset),
+            .SetGlobal => self.globalInstruction("OP_SET_GLOBAL", offset),
 
             .Equal => self.simpleInstruction("OP_EQUAL", offset),
             .Greater => self.simpleInstruction("OP_GREATER", offset),
@@ -109,6 +109,12 @@ pub const Chunk = struct {
         std.debug.print("{s: <16} {: >4} '", .{ name, constant });
         self.constants.items[constant].print();
         std.debug.print("'\n", .{});
+        return offset + 2;
+    }
+
+    fn globalInstruction(self: *const Chunk, name: []const u8, offset: usize) usize {
+        const global = self.code.items[offset + 1];
+        std.debug.print("{s: <16} {: >4}\n", .{ name, global });
         return offset + 2;
     }
 
