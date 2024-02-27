@@ -8,8 +8,14 @@ I actually started reading this part while still going through the global variab
 
 I'm not entirely sure if this complexity is worth it or not. When it comes to execution time, it's probably faster since we aren't iterating over all local variables in the scope and checking their names, but it's also using more memory so I guess it comes down to what we favour.
 
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/22_locals_map).
+
 2. I think I said this before in one of the challenges for the tree walking interpreter, but one of the languages I'm mostly familiar is Rust. In Rust shadowing is allowed anywhere and with that expression it would be defining a new variable `a` with the value of the existing variable with the same name. In contrast, Zig doesn't allow shadowing at all even if it's in different scopes.
 
-3. WIP
+3. This one came with a difficulty that I didn't manage to overcome which was globals that were constants, so I ended up choosing to only allow constants in local scopes. By limiting this to locals, we can store in the `Local` struct in the compiler a boolean that tells if the local is a const or not. When doing assignements we can report an error if the bool is set to true. This boolean is set to the value of a field in the compiler which is true when doing constant declarations but false in any other moment.
+
+I tried using hash sets for the globals but for some reason these weren't working and I didn't have much time to debug it.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/22_consts).
 
 4. WIP
