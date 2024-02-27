@@ -18,4 +18,6 @@ I tried using hash sets for the globals but for some reason these weren't workin
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/22_consts).
 
-4. WIP
+4. For this I had to do the growable stack, similar to a previous challenge, which was simply switching the allocator used by the stack. However, I also had to make the locals array able to grow, but I instead just made it bigger. I think I should've also used a fixed buffer allocator for the local's array.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/22_bigger_stack).
