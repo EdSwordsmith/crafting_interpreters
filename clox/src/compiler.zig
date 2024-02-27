@@ -76,7 +76,10 @@ const Parser = struct {
 const Local = struct {
     name: Token,
     depth: isize,
+    is_const: bool,
 };
+
+const GlobalConsts = @import("table.zig").Table(void, .{});
 
 pub const Compiler = struct {
     allocator: std.mem.Allocator,
@@ -88,6 +91,7 @@ pub const Compiler = struct {
     locals: [256]Local = undefined,
     local_count: usize = 0,
     scope_depth: usize = 0,
+    is_const: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, objects: *ObjList, source: []const u8) Compiler {
         return Compiler{
@@ -270,8 +274,8 @@ pub const Compiler = struct {
     fn identifierConstant(self: *Compiler, name: *const Token) !u8 {
         const chars = try self.objects.allocator.dupe(u8, name.lexeme);
         const obj = try self.objects.newString(chars);
-        const constant = try self.makeConstant(Value.obj(obj));
-        return constant;
+
+        return try self.makeConstant(Value.obj(obj));
     }
 
     fn parseVariable(self: *Compiler, error_message: []const u8) !u8 {
@@ -304,9 +308,11 @@ pub const Compiler = struct {
         var arg: u8 = 0;
         var set_op = OpCode.SetLocal;
         var get_op = OpCode.GetLocal;
+        var is_const = false;
 
         if (self.resolveLocal(&name)) |local| {
             arg = local;
+            is_const = self.locals[local].is_const;
         } else {
             arg = try self.identifierConstant(&name);
             set_op = OpCode.SetGlobal;
@@ -314,6 +320,9 @@ pub const Compiler = struct {
         }
 
         if (can_assign and self.match(TokenType.Equal)) {
+            if (is_const)
+                self.errorAtPrevious("Cannot reassign a constant.");
+
             try self.expression();
             try self.emitOp(set_op);
             try self.emitByte(arg);
@@ -356,6 +365,7 @@ pub const Compiler = struct {
         self.local_count += 1;
         local.name = name;
         local.depth = -1;
+        local.is_const = self.is_const;
     }
 
     fn varDeclaration(self: *Compiler) !void {
@@ -378,9 +388,32 @@ pub const Compiler = struct {
         try self.emitByte(global);
     }
 
+    fn constDeclaration(self: *Compiler) !void {
+        if (self.scope_depth == 0)
+            self.errorAtPrevious("Cannot declare constants in the global scope.");
+
+        self.is_const = true;
+        const global = try self.parseVariable("Expect constant name.");
+        self.is_const = false;
+
+        self.consume(TokenType.Equal, "Expect '=' after constant name.");
+        try self.expression();
+        self.consume(TokenType.Semicolon, "Expect ';' after constant declaration.");
+
+        if (self.scope_depth > 0) {
+            self.locals[self.local_count - 1].depth = @intCast(self.scope_depth);
+            return;
+        }
+
+        try self.emitOp(OpCode.DefineGlobal);
+        try self.emitByte(global);
+    }
+
     fn declaration(self: *Compiler) anyerror!void {
         if (self.match(TokenType.Var)) {
             try self.varDeclaration();
+        } else if (self.match(TokenType.Const)) {
+            try self.constDeclaration();
         } else {
             try self.statement();
         }
