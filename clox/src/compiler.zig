@@ -85,7 +85,7 @@ pub const Compiler = struct {
     scanner: Scanner,
     parser: Parser = .{},
 
-    locals: [256]Local = undefined,
+    locals: [256 * 256]Local = undefined,
     local_count: usize = 0,
     scope_depth: usize = 0,
 
@@ -283,7 +283,7 @@ pub const Compiler = struct {
         return try self.identifierConstant(&self.parser.previous);
     }
 
-    fn resolveLocal(self: *Compiler, name: *const Token) ?u8 {
+    fn resolveLocal(self: *Compiler, name: *const Token) ?u16 {
         var i: isize = @intCast(self.local_count);
         i -= 1;
 
@@ -302,11 +302,19 @@ pub const Compiler = struct {
 
     fn namedVariable(self: *Compiler, name: Token, can_assign: bool) !void {
         var arg: u8 = 0;
+        var arg2: ?u8 = null;
         var set_op = OpCode.SetLocal;
         var get_op = OpCode.GetLocal;
 
         if (self.resolveLocal(&name)) |local| {
-            arg = local;
+            if (local > 255) {
+                arg = @as(u8, @truncate(local & 0xFF));
+                arg2 = @as(u8, @truncate(@shrExact(local & 0xFF00, 8)));
+                get_op = OpCode.GetLocalLong;
+                set_op = OpCode.SetLocalLong;
+            } else {
+                arg = @as(u8, @truncate(local));
+            }
         } else {
             arg = try self.identifierConstant(&name);
             set_op = OpCode.SetGlobal;
@@ -316,10 +324,13 @@ pub const Compiler = struct {
         if (can_assign and self.match(TokenType.Equal)) {
             try self.expression();
             try self.emitOp(set_op);
-            try self.emitByte(arg);
         } else {
             try self.emitOp(get_op);
-            try self.emitByte(arg);
+        }
+
+        try self.emitByte(arg);
+        if (arg2) |value| {
+            try self.emitByte(value);
         }
     }
 
@@ -347,7 +358,7 @@ pub const Compiler = struct {
     }
 
     fn addLocal(self: *Compiler, name: Token) void {
-        if (self.local_count == 256) {
+        if (self.local_count == 256 * 256) {
             self.errorAtPrevious("Too many local variables in function.");
             return;
         }

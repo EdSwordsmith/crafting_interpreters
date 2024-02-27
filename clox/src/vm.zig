@@ -86,6 +86,19 @@ pub const VM = struct {
                     self.stack.items[local] = self.peek(0);
                 },
 
+                .GetLocalLong => {
+                    const local1: usize = @intCast(self.readByte());
+                    const local2: usize = @intCast(self.readByte());
+                    const local = local1 + local2 * 256;
+                    try self.stack.append(self.stack.items[local]);
+                },
+                .SetLocalLong => {
+                    const local1: usize = @intCast(self.readByte());
+                    const local2: usize = @intCast(self.readByte());
+                    const local = local1 + local2 * 256;
+                    self.stack.items[local] = self.peek(0);
+                },
+
                 .GetGlobal => {
                     const name = self.readConstant().obj;
                     const value = self.globals.get(name);

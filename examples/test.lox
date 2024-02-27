@@ -1,0 +1,329 @@
+{
+  var a1;
+  var b1;
+  var c1;
+  var d1;
+  var e1;
+  var f1;
+  var g1;
+
+  var a2;
+  var b2;
+  var c2;
+  var d2;
+  var e2;
+  var f2;
+  var g2;
+
+  var a3;
+  var b3;
+  var c3;
+  var d3;
+  var e3;
+  var f3;
+  var g3;
+
+  var a4;
+  var b4;
+  var c4;
+  var d4;
+  var e4;
+  var f4;
+  var g4;
+
+  var a5;
+  var b5;
+  var c5;
+  var d5;
+  var e5;
+  var f5;
+  var g5;
+
+  var a6;
+  var b6;
+  var c6;
+  var d6;
+  var e6;
+  var f6;
+  var g6;
+
+  var a7;
+  var b7;
+  var c7;
+  var d7;
+  var e7;
+  var f7;
+  var g7;
+
+  var a8;
+  var b8;
+  var c8;
+  var d8;
+  var e8;
+  var f8;
+  var g8;
+
+  {
+    var a1;
+    var b1;
+    var c1;
+    var d1;
+    var e1;
+    var f1;
+    var g1;
+
+    var a2;
+    var b2;
+    var c2;
+    var d2;
+    var e2;
+    var f2;
+    var g2;
+
+    var a3;
+    var b3;
+    var c3;
+    var d3;
+    var e3;
+    var f3;
+    var g3;
+
+    var a4;
+    var b4;
+    var c4;
+    var d4;
+    var e4;
+    var f4;
+    var g4;
+
+    var a5;
+    var b5;
+    var c5;
+    var d5;
+    var e5;
+    var f5;
+    var g5;
+
+    var a6;
+    var b6;
+    var c6;
+    var d6;
+    var e6;
+    var f6;
+    var g6;
+
+    var a7;
+    var b7;
+    var c7;
+    var d7;
+    var e7;
+    var f7;
+    var g7;
+
+    var a8;
+    var b8;
+    var c8;
+    var d8;
+    var e8;
+    var f8;
+    var g8;
+
+    {
+      var a1;
+      var b1;
+      var c1;
+      var d1;
+      var e1;
+      var f1;
+      var g1;
+
+      var a2;
+      var b2;
+      var c2;
+      var d2;
+      var e2;
+      var f2;
+      var g2;
+
+      var a3;
+      var b3;
+      var c3;
+      var d3;
+      var e3;
+      var f3;
+      var g3;
+
+      var a4;
+      var b4;
+      var c4;
+      var d4;
+      var e4;
+      var f4;
+      var g4;
+
+      var a5;
+      var b5;
+      var c5;
+      var d5;
+      var e5;
+      var f5;
+      var g5;
+
+      var a6;
+      var b6;
+      var c6;
+      var d6;
+      var e6;
+      var f6;
+      var g6;
+
+      var a7;
+      var b7;
+      var c7;
+      var d7;
+      var e7;
+      var f7;
+      var g7;
+
+      var a8;
+      var b8;
+      var c8;
+      var d8;
+      var e8;
+      var f8;
+      var g8;
+
+      {
+        var a1;
+        var b1;
+        var c1;
+        var d1;
+        var e1;
+        var f1;
+        var g1;
+
+        var a2;
+        var b2;
+        var c2;
+        var d2;
+        var e2;
+        var f2;
+        var g2;
+
+        var a3;
+        var b3;
+        var c3;
+        var d3;
+        var e3;
+        var f3;
+        var g3;
+
+        var a4;
+        var b4;
+        var c4;
+        var d4;
+        var e4;
+        var f4;
+        var g4;
+
+        var a5;
+        var b5;
+        var c5;
+        var d5;
+        var e5;
+        var f5;
+        var g5;
+
+        var a6;
+        var b6;
+        var c6;
+        var d6;
+        var e6;
+        var f6;
+        var g6;
+
+        var a7;
+        var b7;
+        var c7;
+        var d7;
+        var e7;
+        var f7;
+        var g7;
+
+        var a8;
+        var b8;
+        var c8;
+        var d8;
+        var e8;
+        var f8;
+        var g8;
+
+        {
+          var a1;
+          var b1;
+          var c1;
+          var d1;
+          var e1;
+          var f1;
+          var g1;
+
+          var a2;
+          var b2;
+          var c2;
+          var d2;
+          var e2;
+          var f2;
+          var g2;
+
+          var a3;
+          var b3;
+          var c3;
+          var d3;
+          var e3;
+          var f3;
+          var g3;
+
+          var a4;
+          var b4;
+          var c4;
+          var d4;
+          var e4;
+          var f4;
+          var g4;
+
+          var a5;
+          var b5;
+          var c5;
+          var d5;
+          var e5;
+          var f5;
+          var g5;
+
+          var a6;
+          var b6;
+          var c6;
+          var d6;
+          var e6;
+          var f6;
+          var g6;
+
+          var a7;
+          var b7;
+          var c7;
+          var d7;
+          var e7;
+          var f7;
+          var g7;
+
+          var a8;
+          var b8;
+          var c8;
+          var d8;
+          var e8;
+          var f8;
+          var g8;
+        }
+      }
+    }
+  }
+}
