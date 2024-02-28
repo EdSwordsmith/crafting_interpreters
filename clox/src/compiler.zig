@@ -61,6 +61,10 @@ fn getRules() std.EnumArray(TokenType, ParseRule) {
 
     array.set(TokenType.Identifier, .{ .prefix = Compiler.variable });
 
+    // Logical Operators
+    array.set(TokenType.And, .{ .infix = Compiler.and_, .precedence = Precedence.And });
+    array.set(TokenType.Or, .{ .infix = Compiler.or_, .precedence = Precedence.Or });
+
     return array;
 }
 
@@ -223,6 +227,26 @@ pub const Compiler = struct {
         }
     }
 
+    fn and_(self: *Compiler, _: bool) !void {
+        const end_jump = try self.emitJump(OpCode.JumpIfFalse);
+
+        try self.emitOp(OpCode.Pop);
+        try self.parsePrecedence(Precedence.And);
+
+        try self.patchJump(end_jump);
+    }
+
+    fn or_(self: *Compiler, _: bool) !void {
+        const else_jump = try self.emitJump(OpCode.JumpIfFalse);
+        const end_jump = try self.emitJump(OpCode.Jump);
+
+        try self.patchJump(else_jump);
+        try self.emitOp(OpCode.Pop);
+
+        try self.parsePrecedence(Precedence.Or);
+        try self.patchJump(end_jump);
+    }
+
     fn printStatement(self: *Compiler) !void {
         try self.expression();
         self.consume(TokenType.Semicolon, "Expect ';' after value.");
@@ -255,9 +279,94 @@ pub const Compiler = struct {
         try self.emitOp(OpCode.Pop);
     }
 
-    fn statement(self: *Compiler) !void {
+    fn ifStatement(self: *Compiler) !void {
+        self.consume(TokenType.LeftParen, "Expect '(' after 'if'.");
+        try self.expression();
+        self.consume(TokenType.RightParen, "Expect ')' after condition.");
+
+        const then_jump = try self.emitJump(OpCode.JumpIfFalse);
+        try self.emitOp(OpCode.Pop);
+        try self.statement();
+
+        const else_jump = try self.emitJump(OpCode.Jump);
+
+        try self.patchJump(then_jump);
+        try self.emitOp(OpCode.Pop);
+
+        if (self.match(TokenType.Else))
+            try self.statement();
+
+        try self.patchJump(else_jump);
+    }
+
+    fn whileStatement(self: *Compiler) !void {
+        const loop_start = self.chunk.code.items.len;
+        self.consume(TokenType.LeftParen, "Expect '(' after 'while'.");
+        try self.expression();
+        self.consume(TokenType.RightParen, "Expect ')' after condition.");
+
+        const exit_jump = try self.emitJump(OpCode.JumpIfFalse);
+        try self.emitOp(OpCode.Pop);
+        try self.statement();
+        try self.emitLoop(loop_start);
+
+        try self.patchJump(exit_jump);
+        try self.emitOp(OpCode.Pop);
+    }
+
+    fn forStatement(self: *Compiler) !void {
+        self.beginScope();
+        self.consume(TokenType.LeftParen, "Expect '(' after 'for'.");
+
+        if (self.match(TokenType.Semicolon)) {
+            // No initializer.
+        } else if (self.match(TokenType.Var)) {
+            try self.varDeclaration();
+        } else {
+            try self.expressionStatement();
+        }
+
+        var loop_start = self.chunk.code.items.len;
+        var exit_jump: ?usize = null;
+        if (!self.match(TokenType.Semicolon)) {
+            try self.expression();
+            self.consume(TokenType.Semicolon, "Expect ';' after loop condition.");
+            exit_jump = try self.emitJump(OpCode.JumpIfFalse);
+            try self.emitOp(OpCode.Pop);
+        }
+
+        if (!self.match(TokenType.RightParen)) {
+            const body_jump = try self.emitJump(OpCode.Jump);
+            const increment_start = self.chunk.code.items.len;
+            try self.expression();
+            try self.emitOp(OpCode.Pop);
+            self.consume(TokenType.RightParen, "Expect ')' after for clauses.");
+
+            try self.emitLoop(loop_start);
+            loop_start = increment_start;
+            try self.patchJump(body_jump);
+        }
+
+        try self.statement();
+        try self.emitLoop(loop_start);
+
+        if (exit_jump) |offset| {
+            try self.patchJump(offset);
+            try self.emitOp(OpCode.Pop);
+        }
+
+        try self.endScope();
+    }
+
+    fn statement(self: *Compiler) anyerror!void {
         if (self.match(TokenType.Print)) {
             try self.printStatement();
+        } else if (self.match(TokenType.For)) {
+            try self.forStatement();
+        } else if (self.match(TokenType.If)) {
+            try self.ifStatement();
+        } else if (self.match(TokenType.While)) {
+            try self.whileStatement();
         } else if (self.match(TokenType.LeftBrace)) {
             self.beginScope();
             try self.block();
@@ -394,6 +503,33 @@ pub const Compiler = struct {
 
     fn emitOp(self: *Compiler, op: OpCode) !void {
         try self.chunk.writeOp(op, self.parser.previous.line);
+    }
+
+    fn emitJump(self: *Compiler, instruction: OpCode) !usize {
+        try self.emitOp(instruction);
+        try self.emitByte(0xff);
+        try self.emitByte(0xff);
+        return self.chunk.code.items.len - 2;
+    }
+
+    fn patchJump(self: *Compiler, offset: usize) !void {
+        const jump = self.chunk.code.items.len - offset - 2;
+        if (jump > std.math.maxInt(u16))
+            self.errorAtPrevious("Too much code to jump over.");
+
+        self.chunk.code.items[offset] = @intCast((jump >> 8) & 0xff);
+        self.chunk.code.items[offset + 1] = @intCast(jump & 0xff);
+    }
+
+    fn emitLoop(self: *Compiler, loop_start: usize) !void {
+        try self.emitOp(OpCode.Loop);
+
+        const offset = self.chunk.code.items.len - loop_start + 2;
+        if (offset > std.math.maxInt(u16))
+            self.errorAtPrevious("Too much code to jump over.");
+
+        try self.emitByte(@intCast((offset >> 8) & 0xff));
+        try self.emitByte(@intCast(offset & 0xff));
     }
 
     fn makeConstant(self: *Compiler, value: Value) !u8 {

@@ -23,6 +23,9 @@ pub const OpCode = enum(u8) {
     Not,
     Negate,
     Print,
+    Jump,
+    JumpIfFalse,
+    Loop,
     Return,
 };
 
@@ -105,6 +108,10 @@ pub const Chunk = struct {
 
             .Print => self.simpleInstruction("OP_PRINT", offset),
 
+            .Jump => self.jumpInstruction("OP_JUMP", 1, offset),
+            .JumpIfFalse => self.jumpInstruction("OP_JUMP_IF_FALSE", 1, offset),
+            .Loop => self.jumpInstruction("OP_LOOP", -1, offset),
+
             .Return => self.simpleInstruction("OP_RETURN", offset),
         };
     }
@@ -127,5 +134,12 @@ pub const Chunk = struct {
         const slot = self.code.items[offset + 1];
         std.debug.print("{s: <16} {: >4}\n", .{ name, slot });
         return offset + 2;
+    }
+
+    fn jumpInstruction(self: *const Chunk, name: []const u8, sign: i8, offset: usize) usize {
+        const jump: isize = @intCast(@as(u16, self.code.items[offset + 1]) * 256 + @as(u16, self.code.items[offset + 2]));
+        const signed_offset: isize = @intCast(offset);
+        std.debug.print("{s: <16} {: >4} -> {}\n", .{ name, offset, signed_offset + 3 + sign * jump });
+        return offset + 3;
     }
 };

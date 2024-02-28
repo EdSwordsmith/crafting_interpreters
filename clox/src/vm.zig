@@ -208,15 +208,37 @@ pub const VM = struct {
                     std.debug.print("\n", .{});
                 },
 
+                .Jump => {
+                    const offset = self.readShort();
+                    self.ip += offset;
+                },
+
+                .JumpIfFalse => {
+                    const offset = self.readShort();
+                    if (self.peek(0).isFalsey())
+                        self.ip += offset;
+                },
+
+                .Loop => {
+                    const offset = self.readShort();
+                    self.ip -= offset;
+                },
+
                 .Return => return,
             }
         }
     }
 
     fn readByte(self: *VM) u8 {
-        var byte = self.ip[0];
+        const byte = self.ip[0];
         self.ip += 1;
         return byte;
+    }
+
+    fn readShort(self: *VM) u16 {
+        const short: u16 = @as(u16, self.ip[0]) * 256 + @as(u16, self.ip[1]);
+        self.ip += 2;
+        return short;
     }
 
     fn readConstant(self: *VM) Value {
