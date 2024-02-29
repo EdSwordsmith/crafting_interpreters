@@ -93,6 +93,9 @@ pub const Compiler = struct {
     local_count: usize = 0,
     scope_depth: usize = 0,
 
+    current_loop: ?usize = null,
+    loop_depth: usize = 0,
+
     pub fn init(allocator: std.mem.Allocator, objects: *ObjList, source: []const u8) Compiler {
         return Compiler{
             .allocator = allocator,
@@ -300,7 +303,12 @@ pub const Compiler = struct {
     }
 
     fn whileStatement(self: *Compiler) !void {
+        const prev_loop = self.current_loop;
         const loop_start = self.chunk.code.items.len;
+        self.current_loop = loop_start;
+        const prev_depth = self.loop_depth;
+        self.loop_depth = self.scope_depth;
+
         self.consume(TokenType.LeftParen, "Expect '(' after 'while'.");
         try self.expression();
         self.consume(TokenType.RightParen, "Expect ')' after condition.");
@@ -312,6 +320,9 @@ pub const Compiler = struct {
 
         try self.patchJump(exit_jump);
         try self.emitOp(OpCode.Pop);
+
+        self.current_loop = prev_loop;
+        self.loop_depth = prev_depth;
     }
 
     fn forStatement(self: *Compiler) !void {
@@ -347,6 +358,11 @@ pub const Compiler = struct {
             try self.patchJump(body_jump);
         }
 
+        const prev_loop = self.current_loop;
+        self.current_loop = loop_start;
+        const prev_depth = self.loop_depth;
+        self.loop_depth = self.scope_depth;
+
         try self.statement();
         try self.emitLoop(loop_start);
 
@@ -356,11 +372,32 @@ pub const Compiler = struct {
         }
 
         try self.endScope();
+
+        self.current_loop = prev_loop;
+        self.loop_depth = prev_depth;
+    }
+
+    fn continueStatement(self: *Compiler) !void {
+        if (self.current_loop) |offset| {
+            var count = self.local_count;
+            while (count > 0 and self.locals[self.local_count - 1].depth > self.loop_depth) {
+                try self.emitOp(OpCode.Pop);
+                count -= 1;
+            }
+
+            try self.emitLoop(offset);
+        } else {
+            self.errorAtPrevious("Cannot use 'continue' outside of a loop.");
+        }
+
+        self.consume(TokenType.Semicolon, "Expect ';' after 'continue'.");
     }
 
     fn statement(self: *Compiler) anyerror!void {
         if (self.match(TokenType.Print)) {
             try self.printStatement();
+        } else if (self.match(TokenType.Continue)) {
+            try self.continueStatement();
         } else if (self.match(TokenType.For)) {
             try self.forStatement();
         } else if (self.match(TokenType.If)) {
