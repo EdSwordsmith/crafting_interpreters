@@ -4,7 +4,9 @@ I really enjoyed this part and I found no obstacles that were hard to overcome. 
 
 ## Challenges
 
-1. WIP
+1. This challenge ended up being more difficult than I had initially anticipated. For comparing the value in each case I needed a way to duplicate the last value on the stack. For this I initially went with reusing in a weird way `OP_GET_LOCAL` but I ended up adding a new instruction `OP_DUP` just for this. I also initially thought of using a while loop with a different condition (while match case) but it ended up getting stuck and I remembered the condition we use for parsing blocks. After that, I also almost didn't remember that I needed to make the jump if false go to the switch's end in case there's no `default:`. After all these things, it was a fun challenge.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/23_switch).
 
 2. WIP
 
