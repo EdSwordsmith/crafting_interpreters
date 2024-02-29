@@ -8,6 +8,8 @@ I really enjoyed this part and I found no obstacles that were hard to overcome. 
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/23_switch).
 
-2. WIP
+2. Again, most of this was similar to what I did on my Compilers course, with the exception that I didn't have to "pop" the values stored on the stack as I had to do here. Initially, I used `endScope` to emit `OP_POP` for each local variable in the scope when a `continue` is found and `beginScope` to re-create the scope, as variables will be redeclared afterwards. However, I realized that the continue might be more than 1 scope away from ouside the loop, so similar to how I'm keeping track of the offset for the current loop, I keep track of the depth when a loop starts so that I emit the right amount of `OP_POP`.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/23_continue).
 
 3. WIP
