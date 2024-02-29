@@ -13,6 +13,7 @@ pub const TokenType = enum {
     Semicolon,
     Slash,
     Star,
+    Colon,
 
     // One or two character tokens.
     Bang,
@@ -31,7 +32,9 @@ pub const TokenType = enum {
 
     // Keywords.
     And,
+    Case,
     Class,
+    Default,
     Else,
     False,
     Fun,
@@ -42,6 +45,7 @@ pub const TokenType = enum {
     Print,
     Return,
     Super,
+    Switch,
     This,
     True,
     Var,
@@ -96,6 +100,7 @@ pub const Scanner = struct {
             '+' => self.makeToken(TokenType.Plus),
             '/' => self.makeToken(TokenType.Slash),
             '*' => self.makeToken(TokenType.Star),
+            ':' => self.makeToken(TokenType.Colon),
 
             '!' => self.makeToken(if (self.match('=')) TokenType.BangEqual else TokenType.Bang),
             '=' => self.makeToken(if (self.match('=')) TokenType.EqualEqual else TokenType.Equal),
@@ -209,7 +214,15 @@ pub const Scanner = struct {
     fn identifierType(self: *const Scanner) TokenType {
         return switch (self.source[self.start]) {
             'a' => self.checkKeyword(1, "nd", TokenType.And),
-            'c' => self.checkKeyword(1, "lass", TokenType.Class),
+
+            'c' => if (self.current - self.start > 1) switch (self.source[self.start + 1]) {
+                'a' => self.checkKeyword(2, "se", TokenType.Case),
+                'l' => self.checkKeyword(2, "ass", TokenType.Class),
+                else => TokenType.Identifier,
+            } else TokenType.Identifier,
+
+            'd' => self.checkKeyword(1, "efault", TokenType.Default),
+
             'e' => self.checkKeyword(1, "lse", TokenType.Else),
 
             'f' => if (self.current - self.start > 1) switch (self.source[self.start + 1]) {
@@ -224,7 +237,12 @@ pub const Scanner = struct {
             'o' => self.checkKeyword(1, "r", TokenType.Or),
             'p' => self.checkKeyword(1, "rint", TokenType.Print),
             'r' => self.checkKeyword(1, "eturn", TokenType.Return),
-            's' => self.checkKeyword(1, "uper", TokenType.Super),
+
+            's' => if (self.current - self.start > 1) switch (self.source[self.start + 1]) {
+                'u' => self.checkKeyword(2, "per", TokenType.Super),
+                'w' => self.checkKeyword(2, "itch", TokenType.Switch),
+                else => TokenType.Identifier,
+            } else TokenType.Identifier,
 
             't' => if (self.current - self.start > 1) switch (self.source[self.start + 1]) {
                 'h' => self.checkKeyword(2, "is", TokenType.This),

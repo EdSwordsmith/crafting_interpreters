@@ -77,6 +77,9 @@ pub const VM = struct {
                     _ = self.stack.pop();
                 },
 
+                .Dup => {
+                    try self.stack.append(self.stack.items[self.stack.items.len - 1]);
+                },
                 .GetLocal => {
                     const local = self.readByte();
                     try self.stack.append(self.stack.items[local]);

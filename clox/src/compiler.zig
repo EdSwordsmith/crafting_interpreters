@@ -358,6 +358,66 @@ pub const Compiler = struct {
         try self.endScope();
     }
 
+    fn switchStatement(self: *Compiler) !void {
+        self.consume(TokenType.LeftParen, "Expect '(' after 'switch'.");
+        try self.expression();
+        self.consume(TokenType.RightParen, "Expect ')' after value.");
+
+        self.consume(TokenType.LeftBrace, "Expect '{' before the switch cases.");
+
+        var prev_jump: ?usize = null;
+        var end_case_jumps: [256]usize = undefined;
+        var num_cases: usize = 0;
+        var had_default = false;
+
+        while (!self.match(TokenType.RightBrace) and !self.match(TokenType.EOF)) {
+            if (self.match(TokenType.Case) or self.match(TokenType.Default)) {
+                if (had_default)
+                    self.errorAtPrevious("Can't have cases after 'default:' in switch statement.");
+
+                if (prev_jump) |offset| {
+                    // If prev_jump isn't null then it's not the first case
+
+                    // Jump to the switch end
+                    end_case_jumps[num_cases] = try self.emitJump(OpCode.Jump);
+                    num_cases += 1;
+
+                    // Patch jump for failure of the previous case
+                    try self.patchJump(offset);
+
+                    // Pop the boolean of the comparison
+                    try self.emitOp(OpCode.Pop);
+                }
+
+                if (self.parser.previous.token_type == .Case) {
+                    try self.emitOp(OpCode.Dup);
+                    try self.expression();
+                    try self.emitOp(OpCode.Equal);
+                    prev_jump = try self.emitJump(OpCode.JumpIfFalse);
+                    self.consume(TokenType.Colon, "Expect ':' after case value.");
+                } else {
+                    self.consume(TokenType.Colon, "Expect ':' after 'default'.");
+                    had_default = true;
+                }
+            } else if (prev_jump != null) {
+                try self.statement();
+            } else {
+                self.errorAtPrevious("Unexpected statement outside of case.");
+            }
+        }
+
+        if (prev_jump) |offset| {
+            if (!had_default)
+                try self.patchJump(offset);
+        }
+
+        while (!had_default and num_cases > 0) : (num_cases -= 1) {
+            try self.patchJump(end_case_jumps[num_cases - 1]);
+        }
+
+        try self.emitOp(OpCode.Pop);
+    }
+
     fn statement(self: *Compiler) anyerror!void {
         if (self.match(TokenType.Print)) {
             try self.printStatement();
@@ -365,6 +425,8 @@ pub const Compiler = struct {
             try self.forStatement();
         } else if (self.match(TokenType.If)) {
             try self.ifStatement();
+        } else if (self.match(TokenType.Switch)) {
+            try self.switchStatement();
         } else if (self.match(TokenType.While)) {
             try self.whileStatement();
         } else if (self.match(TokenType.LeftBrace)) {

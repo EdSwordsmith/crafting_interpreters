@@ -8,6 +8,7 @@ pub const OpCode = enum(u8) {
     True,
     False,
     Pop,
+    Dup,
     GetLocal,
     SetLocal,
     GetGlobal,
@@ -87,6 +88,7 @@ pub const Chunk = struct {
             .False => self.simpleInstruction("OP_FALSE", offset),
             .Pop => self.simpleInstruction("OP_POP", offset),
 
+            .Dup => self.simpleInstruction("OP_DUP", offset),
             .GetLocal => self.byteInstruction("OP_GET_LOCAL", offset),
             .SetLocal => self.byteInstruction("OP_SET_LOCAL", offset),
 
