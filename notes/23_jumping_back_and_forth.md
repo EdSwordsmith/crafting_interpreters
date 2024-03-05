@@ -12,4 +12,13 @@ The code for this challenge can be found [here](https://github.com/EdSwordsmith/
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/23_continue).
 
-3. WIP
+3. I had some trouble trying to find useful ideas, I'm just going to describe one and a possible syntax. I believe a common pattern using loops is to iterate over something and use an if statement inside to essencially only execute the body of the loop when that condition is met. So my idea would be to add an optional condition to the while loop syntax which, if present, will essentially make the while loop's statement only run when the condition is met.
+
+```
+var a = 10;
+while (a > 0; a % 2 == 0) {
+    // Do something
+}
+```
+
+Other than this, I talked with some friends and some joke ideas came up, such as a `maybe` statement which acts like an `if` however it randomly chooses between both branches.
