@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const exe = b.addExecutable(.{
         .name = "clox",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
     const options = b.addOptions();
     options.addOption(bool, "debug_trace_execution", debug_trace_execution or debug);
     options.addOption(bool, "debug_print_code", debug_print_code or debug);
-    exe.addOptions("flags", options);
+    exe.root_module.addOptions("flags", options);
 
     b.installArtifact(exe);
 

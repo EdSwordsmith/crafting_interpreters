@@ -1,4 +1,4 @@
-# Classes 
+# 12 - Classes 
 
 This was the biggest challenge so far and I almost gave up on completing this interpreter. I started implementing this part and everything was fine until the get expressions but I was already suspecting that the set expressions wouldn't work. I had been working with values directly and making copies, so it wouldn't modify any of the fields of the object and making objects be references would require to rewrite a lot.
 

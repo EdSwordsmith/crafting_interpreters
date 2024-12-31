@@ -7,6 +7,7 @@ const Chunk = @import("chunk.zig").Chunk;
 const OpCode = @import("chunk.zig").OpCode;
 const Value = @import("value.zig").Value;
 const ObjList = @import("object.zig").ObjList;
+const Obj = @import("object.zig").Obj;
 const flags = @import("flags");
 
 const Precedence = enum {
@@ -34,7 +35,7 @@ const ParseRule = struct {
 fn getRules() std.EnumArray(TokenType, ParseRule) {
     var array = std.EnumArray(TokenType, ParseRule).initFill(ParseRule{});
 
-    array.set(TokenType.LeftParen, .{ .prefix = Compiler.grouping });
+    array.set(TokenType.LeftParen, .{ .prefix = Compiler.grouping, .infix = Compiler.call, .precedence = Precedence.Call });
 
     // Unary
     array.set(TokenType.Minus, .{ .prefix = Compiler.unary, .infix = Compiler.binary, .precedence = Precedence.Term });
@@ -82,46 +83,52 @@ const Local = struct {
     depth: isize,
 };
 
+const FunctionType = enum { Function, Script };
+
 pub const Compiler = struct {
     allocator: std.mem.Allocator,
     objects: *ObjList,
-    chunk: Chunk,
-    scanner: Scanner,
-    parser: Parser = .{},
+
+    scanner: *Scanner,
+    parser: *Parser,
 
     locals: [256]Local = undefined,
     local_count: usize = 0,
     scope_depth: usize = 0,
 
-    pub fn init(allocator: std.mem.Allocator, objects: *ObjList, source: []const u8) Compiler {
-        return Compiler{
+    ftype: FunctionType = FunctionType.Script,
+    function: ?*Obj = null,
+
+    pub fn init(allocator: std.mem.Allocator, objects: *ObjList, scanner: *Scanner, parser: *Parser, ftype: FunctionType) !Compiler {
+        var compiler = Compiler{
             .allocator = allocator,
             .objects = objects,
-            .chunk = Chunk.init(allocator),
-            .scanner = Scanner.init(source),
+            .scanner = scanner,
+            .parser = parser,
         };
-    }
 
-    pub fn deinit(self: *Compiler) void {
-        self.chunk.deinit();
-    }
-
-    pub fn compile(self: *Compiler) !Chunk {
-        self.advance();
-
-        while (!self.match(TokenType.EOF)) {
-            try self.declaration();
+        compiler.function = null;
+        compiler.ftype = ftype;
+        compiler.local_count = 0;
+        compiler.scope_depth = 0;
+        compiler.function = try objects.newFunction();
+        if (ftype != FunctionType.Script) {
+            const chars = try objects.allocator.dupe(u8, parser.previous.lexeme);
+            const obj = try objects.newString(chars);
+            compiler.function.?.data.function.name = obj;
         }
 
-        try self.emitOp(OpCode.Return);
+        // FIXME: not sure if this works
+        const local = &compiler.locals[0];
+        compiler.local_count += 1;
+        local.depth = 0;
+        local.name.lexeme = "";
 
-        if (self.parser.had_error)
-            return error.CompileError;
+        return compiler;
+    }
 
-        if (flags.debug_print_code)
-            self.chunk.disassemble("code");
-
-        return self.chunk;
+    fn currentChunk(self: *Compiler) *Chunk {
+        return &self.function.?.data.function.chunk;
     }
 
     fn parsePrecedence(self: *Compiler, precedence: Precedence) !void {
@@ -227,6 +234,13 @@ pub const Compiler = struct {
         }
     }
 
+    fn call(self: *Compiler, can_assign: bool) !void {
+        _ = can_assign;
+        const arg_count = try self.argumentList();
+        try self.emitOp(OpCode.Call);
+        try self.emitByte(arg_count);
+    }
+
     fn and_(self: *Compiler, _: bool) !void {
         const end_jump = try self.emitJump(OpCode.JumpIfFalse);
 
@@ -251,6 +265,21 @@ pub const Compiler = struct {
         try self.expression();
         self.consume(TokenType.Semicolon, "Expect ';' after value.");
         try self.emitOp(OpCode.Print);
+    }
+
+    fn returnStatement(self: *Compiler) !void {
+        if (self.ftype == FunctionType.Script) {
+            self.errorAtPrevious("Can't return from top-level code.");
+  }
+
+        if (self.match(TokenType.Semicolon)) {
+            try self.emitOp(OpCode.Nil);
+            try self.emitOp(OpCode.Return);
+        } else {
+            try self.expression();
+            self.consume(TokenType.Semicolon, "Expect ';' after return value.");
+            try self.emitOp(OpCode.Return);
+        }
     }
 
     fn block(self: *Compiler) !void {
@@ -300,7 +329,7 @@ pub const Compiler = struct {
     }
 
     fn whileStatement(self: *Compiler) !void {
-        const loop_start = self.chunk.code.items.len;
+        const loop_start = self.currentChunk().code.items.len;
         self.consume(TokenType.LeftParen, "Expect '(' after 'while'.");
         try self.expression();
         self.consume(TokenType.RightParen, "Expect ')' after condition.");
@@ -326,7 +355,7 @@ pub const Compiler = struct {
             try self.expressionStatement();
         }
 
-        var loop_start = self.chunk.code.items.len;
+        var loop_start = self.currentChunk().code.items.len;
         var exit_jump: ?usize = null;
         if (!self.match(TokenType.Semicolon)) {
             try self.expression();
@@ -337,7 +366,7 @@ pub const Compiler = struct {
 
         if (!self.match(TokenType.RightParen)) {
             const body_jump = try self.emitJump(OpCode.Jump);
-            const increment_start = self.chunk.code.items.len;
+            const increment_start = self.currentChunk().code.items.len;
             try self.expression();
             try self.emitOp(OpCode.Pop);
             self.consume(TokenType.RightParen, "Expect ')' after for clauses.");
@@ -365,6 +394,8 @@ pub const Compiler = struct {
             try self.forStatement();
         } else if (self.match(TokenType.If)) {
             try self.ifStatement();
+        } else if (self.match(TokenType.Return)) {
+            try self.returnStatement();
         } else if (self.match(TokenType.While)) {
             try self.whileStatement();
         } else if (self.match(TokenType.LeftBrace)) {
@@ -467,6 +498,77 @@ pub const Compiler = struct {
         local.depth = -1;
     }
 
+    fn fun(self: *Compiler, ftype: FunctionType) !void {
+        var compiler = try init(self.allocator, self.objects, self.scanner, self.parser, ftype);
+        compiler.beginScope();
+        compiler.consume(TokenType.LeftParen, "Expect '(' after function name.");
+        if (!compiler.check(TokenType.RightParen)) {
+            compiler.function.?.data.function.arity += 1;
+            const first = try compiler.parseVariable("Expect function name.");
+            try compiler.defineVariable(first);
+
+            while (compiler.match(TokenType.Comma)) {
+                compiler.function.?.data.function.arity += 1;
+                if (compiler.function.?.data.function.arity > 255)
+                    compiler.errorAtCurrent("Can't have more than 255 parameters.");
+                const constant = try compiler.parseVariable("Expect function name.");
+                try compiler.defineVariable(constant);
+            }
+        }
+        compiler.consume(TokenType.RightParen, "Expect ')' after parameters.");
+        compiler.consume(TokenType.LeftBrace, "Expect '{' before function body.");
+        try compiler.block();
+
+        const function = try compiler.finish();
+        try self.emitOp(OpCode.Constant);
+        const constant = try self.makeConstant(Value.obj(function));
+        try self.emitByte(constant);
+    }
+
+    fn funDeclaration(self: *Compiler) !void {
+        const global = try self.parseVariable("Expect function name.");
+        self.markInitialized();
+        try self.fun(FunctionType.Function);
+        try self.defineVariable(global);
+    }
+
+    fn markInitialized(self: *Compiler) void {
+        if (self.scope_depth > 0) {
+            self.locals[self.local_count - 1].depth = @intCast(self.scope_depth);
+        }
+    }
+
+    fn defineVariable(self: *Compiler, global: u8) !void {
+        if (self.scope_depth > 0) {
+            self.markInitialized();
+            return;
+        }
+
+        try self.emitOp(OpCode.DefineGlobal);
+        try self.emitByte(global);
+    }
+
+    fn argumentList(self: *Compiler) !u8 {
+        var arg_count: u8 = 0;
+
+        if (!self.check(TokenType.RightParen)) {
+            try self.expression();
+            arg_count += 1;
+
+            while (self.match(TokenType.Comma)) {
+                try self.expression();
+                if (arg_count == 255) {
+                    self.errorAtPrevious("Can't have more than 255 arguments.");
+                }
+                arg_count += 1;
+            }
+        }
+
+        self.consume(TokenType.RightParen, "Expect ')' after arguments.");
+
+        return arg_count;
+    }
+
     fn varDeclaration(self: *Compiler) !void {
         const global = try self.parseVariable("Expect variable name.");
 
@@ -477,18 +579,13 @@ pub const Compiler = struct {
         }
 
         self.consume(TokenType.Semicolon, "Expect ';' after variable declaration.");
-
-        if (self.scope_depth > 0) {
-            self.locals[self.local_count - 1].depth = @intCast(self.scope_depth);
-            return;
-        }
-
-        try self.emitOp(OpCode.DefineGlobal);
-        try self.emitByte(global);
+        try self.defineVariable(global);
     }
 
     fn declaration(self: *Compiler) anyerror!void {
-        if (self.match(TokenType.Var)) {
+        if (self.match(TokenType.Fun)) {
+            try self.funDeclaration();
+        } else if (self.match(TokenType.Var)) {
             try self.varDeclaration();
         } else {
             try self.statement();
@@ -498,33 +595,33 @@ pub const Compiler = struct {
     }
 
     fn emitByte(self: *Compiler, byte: u8) !void {
-        try self.chunk.write(byte, self.parser.previous.line);
+        try self.currentChunk().write(byte, self.parser.previous.line);
     }
 
     fn emitOp(self: *Compiler, op: OpCode) !void {
-        try self.chunk.writeOp(op, self.parser.previous.line);
+        try self.currentChunk().writeOp(op, self.parser.previous.line);
     }
 
     fn emitJump(self: *Compiler, instruction: OpCode) !usize {
         try self.emitOp(instruction);
         try self.emitByte(0xff);
         try self.emitByte(0xff);
-        return self.chunk.code.items.len - 2;
+        return self.currentChunk().code.items.len - 2;
     }
 
     fn patchJump(self: *Compiler, offset: usize) !void {
-        const jump = self.chunk.code.items.len - offset - 2;
+        const jump = self.currentChunk().code.items.len - offset - 2;
         if (jump > std.math.maxInt(u16))
             self.errorAtPrevious("Too much code to jump over.");
 
-        self.chunk.code.items[offset] = @intCast((jump >> 8) & 0xff);
-        self.chunk.code.items[offset + 1] = @intCast(jump & 0xff);
+        self.currentChunk().code.items[offset] = @intCast((jump >> 8) & 0xff);
+        self.currentChunk().code.items[offset + 1] = @intCast(jump & 0xff);
     }
 
     fn emitLoop(self: *Compiler, loop_start: usize) !void {
         try self.emitOp(OpCode.Loop);
 
-        const offset = self.chunk.code.items.len - loop_start + 2;
+        const offset = self.currentChunk().code.items.len - loop_start + 2;
         if (offset > std.math.maxInt(u16))
             self.errorAtPrevious("Too much code to jump over.");
 
@@ -533,7 +630,7 @@ pub const Compiler = struct {
     }
 
     fn makeConstant(self: *Compiler, value: Value) !u8 {
-        const constant = try self.chunk.addConstant(value);
+        const constant = try self.currentChunk().addConstant(value);
         if (constant > std.math.maxInt(u8)) {
             self.errorAtPrevious("Too many constants in one chunk.");
             return 0;
@@ -605,4 +702,37 @@ pub const Compiler = struct {
         std.debug.print(": {s}\n", .{message});
         self.parser.had_error = true;
     }
+
+    pub fn finish(self: *Compiler) !*Obj {
+        try self.emitOp(OpCode.Nil);
+        try self.emitOp(OpCode.Return);
+        const function = self.function.?;
+
+        if (flags.debug_print_code) {
+            const name = if (function.data.function.name == null)
+                "<script>"
+            else
+                function.data.function.name.?.data.string.chars;
+            self.currentChunk().disassemble(name);
+        }
+
+        return function;
+    }
 };
+
+pub fn compile(allocator: std.mem.Allocator, objects: *ObjList, source: []const u8) !*Obj {
+    var scanner = Scanner.init(source);
+    var parser = Parser{};
+    var compiler = try Compiler.init(allocator, objects, &scanner, &parser, FunctionType.Script);
+    compiler.advance();
+
+    while (!compiler.match(TokenType.EOF)) {
+        try compiler.declaration();
+    }
+
+    const function = try compiler.finish();
+    if (compiler.parser.had_error)
+        return error.CompileError;
+
+    return function;
+}
