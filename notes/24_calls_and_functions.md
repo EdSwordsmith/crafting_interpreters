@@ -10,7 +10,7 @@ It's good to be back!
 
 ## Challenges
 
-1. WIP
+1. After some searching, I couldn't find an equivalent to C's register keyword for Zig. As such, I can't really perform these benchmarks, and my thoughts are pure speculation. I don't believe the performance gain would be significant enough to justify the extra code complexity.
 
 2. WIP
 

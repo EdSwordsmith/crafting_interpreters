@@ -16,4 +16,8 @@ On the downsides of having two instructions. One is that we are using one OpCode
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/14_constant_long).
 
-3. WIP
+3. I had left this challenge unanswered for quite a while. My understanding of how the heap works is more high level, so I wasn't sure of how I should answer this. Even after looking at [musl's source code](https://git.musl-libc.org/cgit/musl/tree/src/malloc/oldmalloc/malloc.c), my understanding hasn't improved a lot. I need to look at this better in the future. 
+
+What I could understand is that blocks of heap-allocated memory keep a pointer to the next and previous block of memory and can be marked as "in use" or "free". I also found a function which partly shows how blocks can be reused, by splitting a block into two when less memory is required.
+
+As for the "Hardcore mode" part of the challenge, I did not write a reallocate function in my implementation since I'm using Zig's `std.ArrayList`, but I do know how arena/buffer allocators work. I can use malloc at the start to allocate a big enough buffer which will serve as the heap. I need to keep a pointer to the next free chunk and every time a new allocation is done I would increase this pointer. This would make freeing only work when trying to free the last allocated chunk.
