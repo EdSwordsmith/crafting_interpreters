@@ -20,4 +20,12 @@ The code for this challenge can be found [here](https://github.com/EdSwordsmith/
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/24_runtime_errors).
 
-4. WIP
+4. I was a bit lazy with this challenge. I didn't add all of the native functions I think should be added and I didn't write programs using the native functions I added.
+
+I added two functions: "strlen" which returns the number of characters in a string and "rand" which returns a random number between 0 and 1. The functions I would like to add (but didn't due to laziness) are functions for retrieving user input and functions for converting to and from strings.
+
+Why was I lazy? Because of how I made my implementation not have global variables, I can't allocate new objects unless I add a new argument to native functions. At this point, I'm not sure whether or not I made the right call. However, because of how I implemented the compiler it would allow for a native function that receives a string, compiles it to bytecode and executes it, which would be yet another interesting native function to add.
+
+Most likely, I will revisit this at the end and make some changes to the native functions in my implementation.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/24_morefns).

@@ -33,3 +33,4 @@ I enjoyed my compilers class in college and wanted to learn and explore a little
 - [Global Variables](notes/21_global_variables.md)
 - [Local Variables](notes/22_local_variables.md)
 - [Jumping Back and Forth](notes/23_jumping_back_and_forth.md)
+- [Calls and Functions](notes/24_calls_and_functions.md)
