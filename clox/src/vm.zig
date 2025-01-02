@@ -17,9 +17,7 @@ const CallFrame = struct {
     slots: [*]Value,
 };
 
-fn clock(arg_count: u8, args: [*]Value) Value {
-    _ = arg_count;
-    _ = args;
+fn clock(_: u8, _: [*]Value) Value {
     return Value.number(@as(f64, @floatFromInt(std.time.milliTimestamp())) / 1000);
 }
 

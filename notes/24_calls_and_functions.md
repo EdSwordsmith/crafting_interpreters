@@ -16,6 +16,8 @@ It's good to be back!
 
 The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/24_arity).
 
-3. WIP
+3. This challenge was made really easy in Zig, by changing the return type of native functions to be an error union, making these functions able to signal a runtime error. In "callValue" we catch if any error occurs and return false to propagate the error. I also added a pointer to the VM as an argument so native functions can invoke the "runtimeError" function.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/24_runtime_errors).
 
 4. WIP
