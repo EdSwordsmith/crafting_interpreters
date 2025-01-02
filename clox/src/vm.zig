@@ -21,6 +21,22 @@ fn clock(_: u8, _: [*]Value) Value {
     return Value.number(@as(f64, @floatFromInt(std.time.milliTimestamp())) / 1000);
 }
 
+fn strlen(arg_count: u8, args: [*]Value) Value {
+    if (arg_count != 1) {
+        return Value.nil();
+    } else if (!args[0].isString()) {
+        return Value.nil();
+    }
+
+    const len = args[0].obj.data.string.chars.len;
+    return Value.number(@floatFromInt(len));
+}
+
+fn rand(_: u8, _: [*]Value) Value {
+    const num = std.crypto.random.float(f64);
+    return Value.number(num);
+}
+
 pub const VM = struct {
     stack: std.ArrayList(Value),
     objects: ObjList,
@@ -40,6 +56,8 @@ pub const VM = struct {
         };
 
         try vm.defineNative("clock", clock);
+        try vm.defineNative("strlen", strlen);
+        try vm.defineNative("rand", rand);
 
         return vm;
     }
