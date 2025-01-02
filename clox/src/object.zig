@@ -3,6 +3,7 @@ const std = @import("std");
 const Table = @import("table.zig").Table;
 const Chunk = @import("chunk.zig").Chunk;
 const Value = @import("value.zig").Value;
+const VM = @import("vm.zig").VM;
 
 pub const Obj = struct {
     pub const String = struct {
@@ -40,7 +41,7 @@ pub const Obj = struct {
         }
     };
 
-    pub const NativeFn = *const fn (arg_count: u8, args: [*]Value) Value;
+    pub const NativeFn = *const fn (arg_count: u8, args: [*]Value, vm: *VM) error{RuntimeError}!Value;
 
     pub const Data = union(enum) {
         string: String,

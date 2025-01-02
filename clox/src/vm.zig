@@ -17,10 +17,11 @@ const CallFrame = struct {
     slots: [*]Value,
 };
 
-fn clock(arg_count: u8, args: [*]Value) Value {
-    _ = arg_count;
-    _ = args;
-    return Value.number(@as(f64, @floatFromInt(std.time.milliTimestamp())) / 1000);
+fn clock(_: u8, _: [*]Value, vm: *VM) !Value {
+    // Changed the clock() native function to always throw a runtime error in order to test it
+    vm.runtimeError("Nope!", .{});
+    return error.RuntimeError;
+    // return Value.number(@as(f64, @floatFromInt(std.time.milliTimestamp())) / 1000);
 }
 
 pub const VM = struct {
@@ -312,7 +313,7 @@ pub const VM = struct {
                 .native => |native| {
                     const offset = self.stack.items.len - arg_count;
                     const args = self.stack.items.ptr + offset;
-                    const result = native(arg_count, args);
+                    const result = native(arg_count, args, self) catch return false;
                     self.stack.shrinkRetainingCapacity(self.stack.items.len - arg_count - 1);
                     try self.stack.append(result);
                     return true;
