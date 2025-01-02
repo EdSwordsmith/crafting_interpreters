@@ -7,7 +7,7 @@ pub fn main() !u8 {
     var stack_buffer: [@sizeOf(Value) * 256]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&stack_buffer);
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // defer std.debug.assert(gpa.deinit() == .ok);
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     var vm = try VM.init(gpa.allocator(), fba.allocator());
     defer vm.deinit();

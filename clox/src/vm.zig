@@ -46,7 +46,7 @@ pub const VM = struct {
 
     pub fn deinit(self: *VM) void {
         self.stack.deinit();
-        // self.objects.deinit();
+        self.objects.deinit();
         self.globals.deinit();
     }
 
@@ -347,7 +347,8 @@ pub const VM = struct {
     }
 
     fn defineNative(self: *VM, name: []const u8, function: Obj.NativeFn) !void {
-        const string = try self.objects.newString(name);
+        const chars = try self.objects.allocator.dupe(u8, name);
+        const string = try self.objects.newString(chars);
         try self.stack.append(Value.obj(string));
         const native = try self.objects.newNative(function);
         try self.stack.append(Value.obj(native));
