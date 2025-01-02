@@ -12,7 +12,9 @@ It's good to be back!
 
 1. After some searching, I couldn't find an equivalent to C's register keyword for Zig. As such, I can't really perform these benchmarks, and my thoughts are pure speculation. I don't believe the performance gain would be significant enough to justify the extra code complexity.
 
-2. WIP
+2. This challenge didn't require many changes. Had to use a struct for representing native functions instead of simply using function pointers, so that I could use a field to store the function's arity. And had to make `callValue` check the arity before calling the function pointer.
+
+The code for this challenge can be found [here](https://github.com/EdSwordsmith/crafting_interpreters/tree/24_arity).
 
 3. WIP
 
