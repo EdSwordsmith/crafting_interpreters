@@ -41,7 +41,7 @@ pub const VM = struct {
             .globals = ValueTable.init(object_allocator),
         };
 
-        try vm.defineNative("clock", clock);
+        try vm.defineNative("clock", .{ .function = clock, .arity = 0 });
 
         return vm;
     }
@@ -310,9 +310,14 @@ pub const VM = struct {
             switch (callee.obj.data) {
                 .function => return self.call(callee.obj, arg_count),
                 .native => |native| {
+                    if (arg_count != native.arity) {
+                        self.runtimeError("Expected {} arguments but got {}.", .{ native.arity, arg_count });
+                        return false;
+                    }
+
                     const offset = self.stack.items.len - arg_count;
                     const args = self.stack.items.ptr + offset;
-                    const result = native(arg_count, args);
+                    const result = native.function(arg_count, args);
                     self.stack.shrinkRetainingCapacity(self.stack.items.len - arg_count - 1);
                     try self.stack.append(result);
                     return true;

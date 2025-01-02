@@ -40,7 +40,10 @@ pub const Obj = struct {
         }
     };
 
-    pub const NativeFn = *const fn (arg_count: u8, args: [*]Value) Value;
+    pub const NativeFn = struct {
+        function: *const fn (arg_count: u8, args: [*]Value) Value,
+        arity: u8,
+    };
 
     pub const Data = union(enum) {
         string: String,
